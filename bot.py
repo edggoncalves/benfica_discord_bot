@@ -7,7 +7,7 @@ from os import path
 
 client = discord.Client()
 base_path = path.dirname(__file__)
-relative_path = '/token'
+relative_path = 'token'
 token_path = os.path.join(base_path, relative_path)
 token = open(token_path, 'r').read()
 
