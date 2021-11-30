@@ -16,9 +16,7 @@ async def on_message(message):
     if message.author == client.user:
         return
 
-    if message.content.startswith('$capas'):
-        # embed_content_in_dict = message.embeds[0].to_dict()
-        # await message.channel.send("Hello!")
+    if message.content.startswith('!capas'):
         capas = covers.sports_covers()
         for capa in capas:
             await message.channel.send(capa)
