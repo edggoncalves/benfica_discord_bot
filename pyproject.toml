@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "benfica-discord-bot"
+version = "0.1.0"
+description = ""
+authors = ["Edgar Gonçalves <edgar.g.goncalves@gmail.com>"]
+readme = "README.md"
+packages = [{include = "benfica_discord_bot"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+discord-py = "^2.1.0"
+bs4 = "^0.0.1"
+requests = "^2.28.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
