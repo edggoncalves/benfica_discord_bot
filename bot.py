@@ -1,7 +1,11 @@
 import discord
 from discord.ext import commands
+
+import configparser
 import covers
 from os import path
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 # Configure bot
 intents = discord.Intents.default()
@@ -9,22 +13,36 @@ intents.message_content = True
 description = 'Um bot para obter capas de jornais.'
 bot = commands.Bot(command_prefix='!', description=description, intents=intents)
 
-# Get token
+# Get params
 base_path = path.dirname(__file__)
-relative_path = 'token'
-token_path = path.join(base_path, relative_path)
-token = open(token_path, 'r').read()
-
-
-@bot.event
-async def on_ready():
-    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    print('------')
+relative_path = 'discord.conf'
+config_path = path.join(base_path, relative_path)
+config = configparser.ConfigParser()
+config.read(config_path)
+channel_id = int(config['channel']['id'])
+token = config['auth']['token']
+hour = config['schedule']['hour']
 
 
 @bot.command()
 async def capas(message):
     for capa in covers.sports_covers():
         await message.send(capa)
+
+
+async def daily_covers():
+    channel = bot.get_channel(channel_id)
+    for capa in covers.sports_covers():
+        await channel.send(capa)
+
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
+    print('------')
+    scheduler = AsyncIOScheduler()
+    scheduler.add_job(daily_covers, CronTrigger(hour=hour))
+    scheduler.start()
+
 
 bot.run(token)
