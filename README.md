@@ -6,8 +6,8 @@ It requires a configuration file at the root, `discord.conf`, with the following
 ````commandline
 [auth]
 token=abc
-[discord]
-channel=xyz
+[channel]
+id=xyz
 [schedule]
 hour=xx
 ````
