@@ -1,30 +1,30 @@
-import os.path
-
 import discord
+from discord.ext import commands
 import covers
 from os import path
 
+# Configure bot
+intents = discord.Intents.default()
+intents.message_content = True
+description = 'Um bot para obter capas de jornais.'
+bot = commands.Bot(command_prefix='!', description=description, intents=intents)
 
-client = discord.Client()
+# Get token
 base_path = path.dirname(__file__)
 relative_path = 'token'
-token_path = os.path.join(base_path, relative_path)
+token_path = path.join(base_path, relative_path)
 token = open(token_path, 'r').read()
 
 
-@client.event
+@bot.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(client))
+    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
+    print('------')
 
 
-@client.event
-async def on_message(message):
-    if message.author == client.user:
-        return
+@bot.command()
+async def capas(message):
+    for capa in covers.sports_covers():
+        await message.send(capa)
 
-    if message.content.startswith('!capas'):
-        capas = covers.sports_covers()
-        for capa in capas:
-            await message.channel.send(capa)
-
-client.run(token)
+bot.run(token)
