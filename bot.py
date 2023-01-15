@@ -1,5 +1,8 @@
 import discord
 from discord.ext import commands
+
+import aiocron
+import configparser
 import covers
 from os import path
 
@@ -11,9 +14,10 @@ bot = commands.Bot(command_prefix='!', description=description, intents=intents)
 
 # Get token
 base_path = path.dirname(__file__)
-relative_path = 'token'
-token_path = path.join(base_path, relative_path)
-token = open(token_path, 'r').read()
+relative_path = 'discord.conf'
+config_path = path.join(base_path, relative_path)
+config = configparser.ConfigParser()
+config.read(config_path)
 
 
 @bot.event
@@ -27,4 +31,11 @@ async def capas(message):
     for capa in covers.sports_covers():
         await message.send(capa)
 
-bot.run(token)
+
+@aiocron.crontab('0 8 * * *')
+async def daily_covers():
+    for capa in covers.sports_covers():
+        await bot.get_channel(int(config['channel']['id'])).send(capa)
+
+
+bot.run(config['auth']['token'])
