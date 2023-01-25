@@ -1,9 +1,9 @@
 import discord
 from discord.ext import commands
 
-import configparser
+import configuration
 import covers
-from os import path
+import next_match
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -14,11 +14,7 @@ description = 'Um bot para obter capas de jornais.'
 bot = commands.Bot(command_prefix='!', description=description, intents=intents)
 
 # Get params
-base_path = path.dirname(__file__)
-relative_path = 'discord.conf'
-config_path = path.join(base_path, relative_path)
-config = configparser.ConfigParser()
-config.read(config_path)
+config = configuration.read()
 channel_id = int(config['channel']['id'])
 token = config['auth']['token']
 hour = config['schedule']['hour']
@@ -28,6 +24,16 @@ hour = config['schedule']['hour']
 async def capas(message):
     for capa in covers.sports_covers():
         await message.send(capa)
+
+
+@bot.command()
+async def quanto_falta(message):
+    await message.send(next_match.how_long_until())
+
+
+@bot.command()
+async def quando_joga(message):
+    await message.send(next_match.when_is_it())
 
 
 async def daily_covers():
