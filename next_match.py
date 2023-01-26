@@ -88,17 +88,17 @@ def how_long_until() -> str:
     hours, minutes, seconds = str(timedelta(seconds=time_to_match.seconds)).split(':')
 
     if time_to_match.days != 0:
-        sentence = f':slb: Falta(m) {time_to_match.days} dia(s), {hours} hora(s), {minutes} minuto(s) ' \
-                   f'e {seconds} segundo(s) para ver o Glorioso de novo! :slb:'
+        sentence = f'<:slb:240116451782950914> Falta(m) {time_to_match.days} dia(s), {hours} hora(s), ' \
+                   f'{minutes} minuto(s) e {seconds} segundo(s) para ver o Glorioso de novo! <:slb:240116451782950914>'
     else:
-        sentence = f':slb: É hoje! Já só falta(m) {hours} hora(s), {minutes} minuto(s) ' \
-                   f'e {seconds} segundo(s) para ver o Glorioso de novo! :slb:'
+        sentence = f'<:slb:240116451782950914> É hoje! Já só falta(m) {hours} hora(s), {minutes} minuto(s) ' \
+                   f'e {seconds} segundo(s) para ver o Glorioso de novo! <:slb:240116451782950914>'
 
     return sentence
 
 
 def when_is_it() -> str:
     match_date = datetime_match_date()
-    sentence = f':slb: {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} ' \
-               f'às {match_date.hour}h{match_date.minute} :slb:'
+    sentence = f'<:slb:240116451782950914> {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} ' \
+               f'às {match_date.hour}h{match_date.minute} <:slb:240116451782950914>'
     return sentence
