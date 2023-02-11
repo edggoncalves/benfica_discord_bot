@@ -1,4 +1,8 @@
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as ec
+from selenium.common.exceptions import TimeoutException
+
 
 from datetime import datetime, timedelta
 import pendulum
@@ -21,14 +25,21 @@ WEEKDAY = {
 }
 
 
-def get_next_match() -> datetime:
+def get_next_match() -> datetime | None:
     browser = gen_browser()
     browser.get(URL)
-    calendar_obj = browser.find_element(By.CLASS_NAME, "calendar-item-data")
-    next_match_date = calendar_obj.find_element(
-        By.CLASS_NAME, "startDateForCalendar"
-    ).get_attribute("textContent")
-    match_date = datetime.strptime(next_match_date, r"%m/%d/%Y %I:%M:%S %p")
+    try:
+        calendar_obj = WebDriverWait(browser, 3).until(
+            ec.presence_of_element_located((By.CLASS_NAME, "calendar-match-info"))
+        )
+        # calendar_obj = browser.find_element(By.CLASS_NAME, "calendar-match-info")
+        next_match_date = calendar_obj.find_element(
+            By.CLASS_NAME, "startDateForCalendar"
+        ).get_attribute("textContent")
+        match_date = datetime.strptime(next_match_date, r"%m/%d/%Y %I:%M:%S %p")
+    except TimeoutException:
+        match_date = None
+
     browser.quit()
     return match_date
 
@@ -54,33 +65,21 @@ def write_conf(match_date: datetime):
     configuration.write(data)
 
 
+def update_match_date():
+    match_date = get_next_match()
+    write_conf(match_date)
+
+
 def datetime_match_date():
     config = configuration.read()
-    if config.has_section("next_match"):
-        c = {s: dict(config.items(s)) for s in config.sections()}["fetched"]
-        fetched = datetime(
-            int(c["year"]),
-            int(c["month"]),
-            int(c["day"]),
-            int(c["hour"]),
-            int(c["minute"]),
-        )
-
-        if datetime.now() - fetched > timedelta(hours=2):
-            match_date = get_next_match()
-            write_conf(match_date)
-        else:
-            m = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
-            match_date = datetime(
-                int(m["year"]),
-                int(m["month"]),
-                int(m["day"]),
-                int(m["hour"]),
-                int(m["minute"]),
-            )
-    else:
-        match_date = get_next_match()
-        write_conf(match_date)
+    m = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
+    match_date = datetime(
+        int(m["year"]),
+        int(m["month"]),
+        int(m["day"]),
+        int(m["hour"]),
+        int(m["minute"]),
+    )
     return match_date
 
 
@@ -107,9 +106,7 @@ def how_long_until() -> str:
 
 def when_is_it() -> str:
     match_date = datetime_match_date()
-    sentence = (
-        f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às {match_date.hour}h{match_date.minute} "
-        f"{SLB}"
-    )
+    hour, minutes = match_date.time().isoformat().split(":")[:-1]
+    sentence = f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às {hour}h{minutes} {SLB}"
 
     return sentence
