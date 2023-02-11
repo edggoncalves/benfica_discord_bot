@@ -10,14 +10,14 @@ from apscheduler.triggers.cron import CronTrigger
 # Configure bot
 intents = discord.Intents.default()
 intents.message_content = True
-description = 'Um bot para obter capas de jornais.'
-bot = commands.Bot(command_prefix='!', description=description, intents=intents)
+description = "Um bot para obter capas de jornais."
+bot = commands.Bot(command_prefix="!", description=description, intents=intents)
 
 # Get params
 config = configuration.read()
-channel_id = int(config['channel']['id'])
-token = config['auth']['token']
-hour = config['schedule']['hour']
+channel_id = int(config["channel"]["id"])
+token = config["auth"]["token"]
+hour = config["schedule"]["hour"]
 
 
 @bot.command()
@@ -44,8 +44,8 @@ async def daily_covers():
 
 @bot.event
 async def on_ready():
-    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
-    print('------')
+    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+    print("------")
     scheduler = AsyncIOScheduler()
     scheduler.add_job(daily_covers, CronTrigger(hour=hour))
     scheduler.start()

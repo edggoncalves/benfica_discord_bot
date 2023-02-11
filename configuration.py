@@ -3,7 +3,7 @@ import configparser
 
 
 base_path = path.dirname(__file__)
-relative_path = 'discord.conf'
+relative_path = "discord.conf"
 config_path = path.join(base_path, relative_path)
 config = configparser.ConfigParser()
 
@@ -20,5 +20,5 @@ def write(data: dict):
             config.add_section(section)
         for k, v in data[section].items():
             config.set(section, str(k), str(v))
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         config.write(f)

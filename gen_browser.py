@@ -12,22 +12,24 @@ import configuration
 
 def gen_browser() -> selenium.webdriver.firefox.webdriver.WebDriver:
     driver_age = None
-    driver_path = ''
+    driver_path = ""
     config = configuration.read()
-    if not config.has_section('selenium'):
+    if not config.has_section("selenium"):
         driver_path = GeckoDriverManager().install()
-        configuration.write({'selenium': {'path': driver_path}})
+        configuration.write({"selenium": {"path": driver_path}})
     else:
-        driver_age = getctime(config['selenium']['path'])
+        driver_age = getctime(config["selenium"]["path"])
 
     # Update driver if older than 5 days and save new path if that would be the case
-    if driver_age is not None and datetime.now() - datetime.fromtimestamp(driver_age) > timedelta(days=5):
+    if driver_age is not None and datetime.now() - datetime.fromtimestamp(
+        driver_age
+    ) > timedelta(days=5):
         driver_path = GeckoDriverManager().install()
-        configuration.write({'selenium': {'path': driver_path}})
+        configuration.write({"selenium": {"path": driver_path}})
 
     FirefoxService(executable_path=driver_path)
     opts = Options()
     opts.headless = True
-    opts.binary_location = which('firefox')
+    opts.binary_location = which("firefox")
     browser = Firefox(options=opts)
     return browser
