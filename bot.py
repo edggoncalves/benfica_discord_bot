@@ -22,6 +22,7 @@ hour = config["schedule"]["hour"]
 
 @bot.command()
 async def capas(message):
+    last_run[datetime.now().month] = datetime.now().day
     for capa in covers.sports_covers():
         await message.send(capa)
 
@@ -43,9 +44,13 @@ async def actualizar_data(message):
 
 
 async def daily_covers():
-    channel = bot.get_channel(channel_id)
-    for capa in covers.sports_covers():
-        await channel.send(capa)
+    n = {datetime.now().month: datetime.now().day}
+    if last_run and last_run == n:
+        pass
+    else:
+        channel = bot.get_channel(channel_id)
+        for capa in covers.sports_covers():
+            await channel.send(capa)
 
 
 async def update_match_datetime():
