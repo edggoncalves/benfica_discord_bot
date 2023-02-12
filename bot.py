@@ -48,9 +48,23 @@ async def evento(message):
 
 
 async def daily_covers():
-    channel = bot.get_channel(channel_id)
-    for capa in covers.sports_covers():
-        await channel.send(capa)
+    n = {datetime.now().month: datetime.now().day}
+    if last_run and last_run == n:
+        pass
+    else:
+        channel = bot.get_channel(channel_id)
+        for capa in covers.sports_covers():
+            await channel.send(capa)
+
+
+async def update_match_datetime():
+    next_match.update_match_date()
+    try:
+        cid = int(config["schedule"]["id"])
+        channel = bot.get_channel(cid)
+        await channel.send("Data do jogo actualizada. Testa com `!quando_joga` ou `!quanto_falta`")
+    except KeyError:
+        pass
 
 
 async def update_match_datetime():
