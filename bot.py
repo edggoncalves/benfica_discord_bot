@@ -42,6 +42,11 @@ async def actualizar_data(message):
     await message.send("Data do jogo actualizada. Testa com `!quando_joga` ou `!quanto_falta`")
 
 
+@bot.command()
+async def evento(message):
+    await message.send(next_match.generate_event())
+
+
 async def daily_covers():
     channel = bot.get_channel(channel_id)
     for capa in covers.sports_covers():
