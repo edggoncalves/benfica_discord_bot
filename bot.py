@@ -4,6 +4,9 @@ from discord.ext import commands
 import configuration
 import covers
 import next_match
+import totw
+
+from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -19,9 +22,12 @@ channel_id = int(config["channel"]["id"])
 token = config["auth"]["token"]
 hour = config["schedule"]["hour"]
 
+last_run = dict()
+
 
 @bot.command()
 async def capas(message):
+    last_run[datetime.now().month] = datetime.now().day
     for capa in covers.sports_covers():
         await message.send(capa)
 
@@ -47,6 +53,12 @@ async def evento(message):
     await message.send(next_match.generate_event())
 
 
+@bot.command()
+async def equipa_semana(message):
+    _file = totw.fetch_team_week()
+    await message.send(file=_file)
+
+
 async def daily_covers():
     n = {datetime.now().month: datetime.now().day}
     if last_run and last_run == n:
@@ -55,16 +67,6 @@ async def daily_covers():
         channel = bot.get_channel(channel_id)
         for capa in covers.sports_covers():
             await channel.send(capa)
-
-
-async def update_match_datetime():
-    next_match.update_match_date()
-    try:
-        cid = int(config["schedule"]["id"])
-        channel = bot.get_channel(cid)
-        await channel.send("Data do jogo actualizada. Testa com `!quando_joga` ou `!quanto_falta`")
-    except KeyError:
-        pass
 
 
 async def update_match_datetime():

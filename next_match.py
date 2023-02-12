@@ -83,7 +83,7 @@ def write_conf(info: dict):
 def update_match_date():
     match_data = get_next_match()
     write_conf(match_data)
-#
+
 
 def datetime_match_date() -> datetime:
     config = configuration.read()
