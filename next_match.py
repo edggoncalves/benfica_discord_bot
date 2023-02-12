@@ -25,49 +25,64 @@ WEEKDAY = {
 }
 
 
-def get_next_match() -> datetime | None:
+def get_next_match() -> dict | None:
     browser = gen_browser()
     browser.get(URL)
     try:
         calendar_obj = WebDriverWait(browser, 3).until(
             ec.presence_of_element_located((By.CLASS_NAME, "calendar-match-info"))
         )
-        # calendar_obj = browser.find_element(By.CLASS_NAME, "calendar-match-info")
         next_match_date = calendar_obj.find_element(
             By.CLASS_NAME, "startDateForCalendar"
         ).get_attribute("textContent")
         match_date = datetime.strptime(next_match_date, r"%m/%d/%Y %I:%M:%S %p")
+
+        teams = [
+            i.strip() for i in
+            calendar_obj.find_element(
+                By.CLASS_NAME, "titleForCalendar").get_attribute("textContent").split("vs")
+        ]
+        teams.pop(teams.index("SL Benfica"))
+        adversary = teams[0]
+
+        location = calendar_obj.find_element(
+                By.CLASS_NAME, "locationForCalendar").get_attribute("textContent")
+
+        competition = browser.find_element(By.CLASS_NAME, "calendar-competition").text
+
+        match_data = {
+            "date": match_date,
+            "adversary": adversary,
+            "location": location,
+            "competition": competition,
+        }
+
     except TimeoutException:
-        match_date = None
+        match_data = None
 
     browser.quit()
-    return match_date
+    return match_data
 
 
-def write_conf(match_date: datetime):
-    n = datetime.now()
+def write_conf(info: dict):
     data = {
         "next_match": {
-            "year": match_date.year,
-            "month": match_date.month,
-            "day": match_date.day,
-            "hour": match_date.hour,
-            "minute": match_date.minute,
-        },
-        "fetched": {
-            "year": n.year,
-            "month": n.month,
-            "day": n.day,
-            "hour": n.hour,
-            "minute": n.minute,
-        },
+            "year": info["date"].year,
+            "month": info["date"].month,
+            "day": info["date"].day,
+            "hour": info["date"].hour,
+            "minute": info["date"].minute,
+            "adversary": info["adversary"],
+            "location": info["location"],
+            "competition": info["competition"],
+        }
     }
     configuration.write(data)
 
 
 def update_match_date():
-    match_date = get_next_match()
-    write_conf(match_date)
+    match_data = get_next_match()
+    write_conf(match_data)
 
 
 def datetime_match_date():
@@ -80,6 +95,7 @@ def datetime_match_date():
         int(m["hour"]),
         int(m["minute"]),
     )
+
     return match_date
 
 
@@ -105,8 +121,13 @@ def how_long_until() -> str:
 
 
 def when_is_it() -> str:
+    config = configuration.read()
+    match_data = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
     match_date = datetime_match_date()
     hour, minutes = match_date.time().isoformat().split(":")[:-1]
-    sentence = f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às {hour}h{minutes} {SLB}"
+    sentence = (
+        f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às {hour}h{minutes}, {SLB} vs "
+        f"{match_data['adversary']}, no {match_data['location']} para o/a {match_data['competition']}"
+    )
 
     return sentence
