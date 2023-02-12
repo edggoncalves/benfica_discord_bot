@@ -142,8 +142,8 @@ def generate_event() -> str:
     event_text = (
         f"```",
         f":trophy: {match_data['competition']}",
-        f":stadium: {match_data['location']}"
-        f":alarm_clock: {hour}:{minutes}"
+        f":stadium: {match_data['location']}",
+        f":alarm_clock: {hour}:{minutes}",
         f":tv:",
         f"```",
     )
