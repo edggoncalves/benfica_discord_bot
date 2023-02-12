@@ -83,9 +83,9 @@ def write_conf(info: dict):
 def update_match_date():
     match_data = get_next_match()
     write_conf(match_data)
+#
 
-
-def datetime_match_date():
+def datetime_match_date() -> datetime:
     config = configuration.read()
     m = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
     match_date = datetime(
@@ -131,3 +131,20 @@ def when_is_it() -> str:
     )
 
     return sentence
+
+
+def generate_event() -> str:
+    config = configuration.read()
+    match_data = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
+    match_date = datetime_match_date()
+    hour, minutes = match_date.time().isoformat().split(":")[:-1]
+
+    event_text = (
+        f"```",
+        f":trophy: {match_data['competition']}",
+        f":stadium: {match_data['location']}",
+        f":alarm_clock: {hour}:{minutes}",
+        f":tv:",
+        f"```",
+    )
+    return "\n".join(event_text)
