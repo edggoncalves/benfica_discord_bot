@@ -5,7 +5,9 @@ from selenium.common.exceptions import TimeoutException
 
 
 from datetime import datetime, timedelta
+from time import mktime
 import pendulum
+
 import configuration
 from gen_browser import gen_browser
 
@@ -124,9 +126,9 @@ def when_is_it() -> str:
     config = configuration.read()
     match_data = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
     match_date = datetime_match_date()
-    hour, minutes = match_date.time().isoformat().split(":")[:-1]
+    h_m_timestamp = int(mktime(match_date.timetuple()))
     sentence = (
-        f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às {hour}h{minutes}, {SLB} vs "
+        f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às <t:{h_m_timestamp}:t>, {SLB} vs "
         f"{match_data['adversary']}, no {match_data['location']} para o/a {match_data['competition']}"
     )
 
