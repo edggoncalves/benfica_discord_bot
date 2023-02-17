@@ -1,8 +1,7 @@
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as ec
-from selenium.common.exceptions import TimeoutException
-
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 from datetime import datetime, timedelta
 from time import mktime
@@ -30,6 +29,20 @@ WEEKDAY = {
 def get_next_match() -> dict | None:
     browser = gen_browser()
     browser.get(URL)
+    # Get TV Channel element
+    try:
+        tv_obj = WebDriverWait(browser, 3).until(
+            ec.presence_of_element_located((By.CLASS_NAME, "calendar-live-channels"))
+        )
+        img = tv_obj.find_element(By.CLASS_NAME, "loaded").get_attribute("src")
+        if len(img) == 0:
+            tv_channel = '?'
+        else:
+            tv_channel = img.split("/")[-1]
+    except NoSuchElementException or TimeoutException:
+        tv_channel = '?'
+
+    # Get date, location, competition and adversary element
     try:
         calendar_obj = WebDriverWait(browser, 3).until(
             ec.presence_of_element_located((By.CLASS_NAME, "calendar-match-info"))
@@ -57,6 +70,7 @@ def get_next_match() -> dict | None:
             "adversary": adversary,
             "location": location,
             "competition": competition,
+            "tv_channel": tv_channel,
         }
 
     except TimeoutException:
@@ -66,7 +80,8 @@ def get_next_match() -> dict | None:
     return match_data
 
 
-def write_conf(info: dict):
+def update_match_date():
+    info = get_next_match()
     data = {
         "next_match": {
             "year": info["date"].year,
@@ -77,14 +92,10 @@ def write_conf(info: dict):
             "adversary": info["adversary"],
             "location": info["location"],
             "competition": info["competition"],
+            "tv_channel": info["tv_channel"],
         }
     }
     configuration.write(data)
-
-
-def update_match_date():
-    match_data = get_next_match()
-    write_conf(match_data)
 
 
 def datetime_match_date() -> datetime:
@@ -146,7 +157,7 @@ def generate_event() -> str:
         f":trophy: {match_data['competition']}",
         f":stadium: {match_data['location']}",
         f":alarm_clock: {hour}:{minutes}",
-        f":tv:",
+        f":tv: {match_data['tv_channel']}",
         f"```",
     )
     return "\n".join(event_text)
