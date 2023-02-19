@@ -98,9 +98,9 @@ async def on_ready():
     await update_match_datetime()
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("------")
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_covers, CronTrigger(hour=hour)).misfire_grace_time(30)
-    scheduler.add_job(update_match_datetime, CronTrigger(hour=hour)).misfire_grace_time(30)
+    scheduler = AsyncIOScheduler(job_defaults={"misfire_grace_time": 30})
+    scheduler.add_job(daily_covers, CronTrigger(hour=hour))
+    scheduler.add_job(update_match_datetime, CronTrigger(hour=hour))
     scheduler.start()
 
 
