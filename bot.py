@@ -57,7 +57,8 @@ async def evento(message):
 @bot.command()
 async def equipa_semana(message):
     _file = totw.fetch_team_week()
-    await message.send(file=_file)
+    # await message.send(file=_file)
+    await message.send("Em desenvolvimento...")
 
 
 async def daily_covers():
@@ -83,7 +84,7 @@ async def on_ready():
     await update_match_datetime()
     print(f"Logged in as {bot.user} (ID: {bot.user.id})")
     print("------")
-    scheduler = AsyncIOScheduler()
+    scheduler = AsyncIOScheduler(job_defaults={"misfire_grace_time": 60})
     scheduler.add_job(daily_covers, CronTrigger(hour=hour))
     scheduler.add_job(update_match_datetime, CronTrigger(hour=hour))
     scheduler.start()
