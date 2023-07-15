@@ -28,7 +28,7 @@ last_run = dict()
 @bot.command()
 async def capas(message):
     _path = covers.sports_covers()
-    with open(_path, 'rb', encoding='utf-8') as fp:
+    with open(_path, 'rb') as fp:
         _file = discord.File(fp, 'collage.jpg')
     await message.send(file=_file)
 
@@ -63,7 +63,7 @@ async def equipa_semana(message):
 async def daily_covers():
     channel = bot.get_channel(channel_id)
     _path = covers.sports_covers()
-    with open(_path, 'rb', encoding='utf-8') as fp:
+    with open(_path, 'rb') as fp:
         _file = discord.File(fp, 'collage.jpg')
     await channel.send(file=_file)
 
