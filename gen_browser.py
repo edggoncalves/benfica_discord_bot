@@ -2,6 +2,7 @@ import selenium.webdriver.firefox.webdriver
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver import Firefox
+from selenium.common.exceptions import WebDriverException
 from webdriver_manager.firefox import GeckoDriverManager
 
 from shutil import which
@@ -31,5 +32,8 @@ def gen_browser() -> selenium.webdriver.firefox.webdriver.WebDriver:
     opts = Options()
     opts.headless = True
     opts.binary_location = which("firefox")
-    browser = Firefox(options=opts)
+    try:
+        browser = Firefox(options=opts)
+    except WebDriverException as e:
+        raise Exception(f"Could not create browser instance: \n\n{e}")
     return browser
