@@ -1,15 +1,19 @@
+import requests
+from requests.exceptions import RequestException
 from io import BytesIO
 from os import getenv
 from sys import platform
-
-import requests
-
 from bs4 import BeautifulSoup, element
 from PIL import Image
 
+URL = "https://24.sapo.pt/jornais/desporto"
+
+
 def _get_pictures() -> element.ResultSet:
     # Grab html
-    r = requests.get('https://24.sapo.pt/jornais/desporto')
+    r = _request_with_retry(URL)
+    if r is None:
+        raise Exception("Could not get pictures")
 
     # Parse to something edible
     soup = BeautifulSoup(r.content, features='html.parser')
@@ -18,6 +22,20 @@ def _get_pictures() -> element.ResultSet:
     pictures = soup.findAll('picture')
 
     return pictures
+
+
+def _request_with_retry(url, max_retries=3):
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=5.0)
+            response.raise_for_status()
+            return response
+        except RequestException as e:
+            if attempt < max_retries - 1:
+                print("Retrying...")
+            else:
+                print(f"Max retries exceeded. Giving up.\n\n{e}")
+                return None
 
 
 def _filter_pictures(pictures, jornais) -> list:
@@ -54,24 +72,23 @@ def create_collage(_urls: list[str]) -> str:
     
     # scale the smaller images to all have the same width
     max_height = 0
-    for i,img in enumerate(images):
+    for i, img in enumerate(images):
         w, h = images[i].size
         if w == max_width:
             continue
         new_h = (h*max_width) // w
-        images[i] = images[i].resize( (max_width, new_h), Image.Resampling.BICUBIC)
+        images[i] = images[i].resize((max_width, new_h), Image.Resampling.BICUBIC)
 
         if images[i].height > max_height:
             max_height = images[i].height
 
-    # create the blank collage, with dimentions being 3*width and the biggest height of
+    # create the blank collage, with dimensions being 3*width and the biggest height of
     # the three images
     
-    collage = Image.new('RGB', (3*max_width, max_height), "#FFF" )
+    collage = Image.new('RGB', (3*max_width, max_height), "#FFF")
     
     for i, img in enumerate(images):
-        collage.paste(img, (max_width*i,0))
-    
+        collage.paste(img, (max_width*i, 0))
 
     if platform == 'win32':
         _path = f"{getenv('TMP')}\\collage.jpg"
@@ -81,4 +98,3 @@ def create_collage(_urls: list[str]) -> str:
     collage.save(_path, 'JPEG')
 
     return _path
-
