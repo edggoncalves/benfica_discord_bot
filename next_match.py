@@ -125,7 +125,8 @@ def how_long_until() -> str:
 def when_is_it() -> str:
     config = configuration.read()
     match_data = {s: dict(config.items(s)) for s in config.sections()}["next_match"]
-    match_date = datetime_match_date()
+    tz_diff = (pendulum.today(TZ) - pendulum.today()).total_hours()
+    match_date = datetime_match_date() + timedelta(hours=int(tz_diff))
     h_m_timestamp = int(mktime(match_date.timetuple()))
     sentence = (
         f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, dia {match_date.day} às <t:{h_m_timestamp}:t>, {SLB} vs "
