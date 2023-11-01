@@ -24,10 +24,10 @@ def _get_pictures() -> element.ResultSet:
     return pictures
 
 
-def _request_with_retry(url, max_retries=3):
+def _request_with_retry(url: str, max_retries: int = 3, timeout: float = 5.0) -> requests.Response | None:
     for attempt in range(max_retries):
         try:
-            response = requests.get(url, timeout=5.0)
+            response = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
             response.raise_for_status()
             return response
         except RequestException as e:

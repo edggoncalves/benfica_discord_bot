@@ -1,15 +1,12 @@
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.common.exceptions import TimeoutException
-
+import requests
+from requests.exceptions import RequestException
+from bs4 import BeautifulSoup
 
 from datetime import datetime, timedelta
 from time import mktime
 import pendulum
 
 import configuration
-from gen_browser import gen_browser
 
 
 PULHAS = "<:pulhas:867780231116095579>"
@@ -28,42 +25,66 @@ WEEKDAY = {
 
 
 def get_next_match() -> dict | None:
-    browser = gen_browser()
-    browser.get(URL)
-    try:
-        calendar_obj = WebDriverWait(browser, 3).until(
-            ec.presence_of_element_located((By.CLASS_NAME, "calendar-match-info"))
-        )
-        next_match_date = calendar_obj.find_element(
-            By.CLASS_NAME, "startDateForCalendar"
-        ).get_attribute("textContent")
-        match_date = datetime.strptime(next_match_date, r"%m/%d/%Y %I:%M:%S %p")
+    """
+    Write a function that returns the next match date, adversary, location and competition
+    :return: dict
+    """
+    response = _request_with_retry(URL)
+    response.raise_for_status()  # Check for errors
 
-        teams = [
-            i.strip() for i in
-            calendar_obj.find_element(
-                By.CLASS_NAME, "titleForCalendar").get_attribute("textContent").split("vs")
-        ]
-        teams.pop(teams.index("SL Benfica"))
-        adversary = teams[0]
+    soup = BeautifulSoup(response.content, features="html.parser")
 
-        location = calendar_obj.find_element(
-                By.CLASS_NAME, "locationForCalendar").get_attribute("textContent")
-
-        competition = browser.find_element(By.CLASS_NAME, "calendar-competition").text
-
-        match_data = {
-            "date": match_date,
-            "adversary": adversary,
-            "location": location,
-            "competition": competition,
-        }
-
-    except TimeoutException:
-        match_data = None
-
-    browser.quit()
+    match_info = soup.find(name="div", class_="calendar-match-info")
+    # browser = gen_browser()
+    # browser.get(URL)
+    # try:
+    #     calendar_obj = WebDriverWait(browser, 3).until(
+    #         ec.presence_of_element_located((By.CLASS_NAME, "calendar-match-info"))
+    #     )
+    #     next_match_date = calendar_obj.find_element(
+    #         By.CLASS_NAME, "startDateForCalendar"
+    #     ).get_attribute("textContent")
+    #     match_date = datetime.strptime(next_match_date, r"%m/%d/%Y %I:%M:%S %p")
+    #
+    #     teams = [
+    #         i.strip() for i in
+    #         calendar_obj.find_element(
+    #             By.CLASS_NAME, "titleForCalendar").get_attribute("textContent").split("vs")
+    #     ]
+    #     teams.pop(teams.index("SL Benfica"))
+    #     adversary = teams[0]
+    #
+    #     location = calendar_obj.find_element(
+    #             By.CLASS_NAME, "locationForCalendar").get_attribute("textContent")
+    #
+    #     competition = browser.find_element(By.CLASS_NAME, "calendar-competition").text
+    #
+    #     match_data = {
+    #         "date": match_date,
+    #         "adversary": adversary,
+    #         "location": location,
+    #         "competition": competition,
+    #     }
+    #
+    # except TimeoutException:
+    #     match_data = None
+    #
+    # browser.quit()
     return match_data
+
+
+def _request_with_retry(url: str, max_retries: int = 3, timeout: float = 5.0) -> requests.Response | None:
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(url, timeout=timeout, headers={"User-Agent": "Mozilla/5.0"})
+            response.raise_for_status()
+            return response
+        except RequestException as e:
+            if attempt < max_retries - 1:
+                print("Retrying...")
+            else:
+                print(f"Max retries exceeded. Giving up.\n\n{e}")
+                return None
 
 
 def write_conf(info: dict):
