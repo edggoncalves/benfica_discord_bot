@@ -127,5 +127,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Project specific
 /discord.conf
 /poetry.lock
+/.idea
+/match_data.json
+
+# Test files
+test_*.py
+debug_*.py

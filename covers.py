@@ -1,100 +1,206 @@
-import requests
-from requests.exceptions import RequestException
+import asyncio
+import logging
 from io import BytesIO
-from os import getenv
+from pathlib import Path
 from sys import platform
+
+import aiohttp
 from bs4 import BeautifulSoup, element
 from PIL import Image
 
+logger = logging.getLogger(__name__)
+
 URL = "https://24.sapo.pt/jornais/desporto"
+NEWSPAPERS = ("a-bola", "o-jogo", "record")  # Changed to match img alt attributes
+MAX_RETRIES = 3
+REQUEST_TIMEOUT = 5.0
 
 
-def _get_pictures() -> element.ResultSet:
-    # Grab html
-    r = _request_with_retry(URL)
-    if r is None:
-        raise Exception("Could not get pictures")
+async def _fetch_html(url: str) -> bytes | None:
+    """Fetch HTML content from URL with retry logic.
 
-    # Parse to something edible
-    soup = BeautifulSoup(r.content, features='html.parser')
+    Args:
+        url: URL to fetch.
 
-    # Find all elements tagged with picture
-    pictures = soup.findAll('picture')
-
-    return pictures
-
-
-def _request_with_retry(url, max_retries=3):
-    for attempt in range(max_retries):
+    Returns:
+        Raw HTML bytes or None if all retries failed.
+    """
+    for attempt in range(MAX_RETRIES):
         try:
-            response = requests.get(url, timeout=5.0)
-            response.raise_for_status()
-            return response
-        except RequestException as e:
-            if attempt < max_retries - 1:
-                print("Retrying...")
+            timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(url) as response:
+                    response.raise_for_status()
+                    return await response.read()
+        except aiohttp.ClientError as e:
+            if attempt < MAX_RETRIES - 1:
+                logger.warning(
+                    f"Request failed (attempt {attempt + 1}/{MAX_RETRIES}), "
+                    f"retrying... Error: {e}"
+                )
             else:
-                print(f"Max retries exceeded. Giving up.\n\n{e}")
+                logger.error(f"Max retries exceeded for {url}. Error: {e}")
                 return None
+        except TimeoutError:
+            logger.warning(
+                f"Request timeout (attempt {attempt + 1}/{MAX_RETRIES})"
+            )
+            if attempt == MAX_RETRIES - 1:
+                logger.error(
+                    f"Max retries exceeded for {url} (timeout)"
+                )
+                return None
+    return None
 
 
-def _filter_pictures(pictures, jornais) -> list:
-    # Return the covers we want
+async def _get_pictures() -> element.ResultSet | None:
+    """Get newspaper cover image elements from website.
+
+    Returns:
+        BeautifulSoup ResultSet of img elements or None if error.
+    """
+    html_content = await _fetch_html(URL)
+    if html_content is None:
+        return None
+
+    try:
+        soup = BeautifulSoup(html_content, features="html.parser")
+        images = soup.find_all("img")  # Changed from picture to img
+        return images
+    except Exception as e:
+        logger.error(f"Error parsing HTML: {e}")
+        return None
+
+
+
+def _filter_pictures(
+    pictures: element.ResultSet,
+    newspapers: tuple[str, ...]
+) -> list[str]:
+    """Filter image elements to get desired newspaper covers.
+
+    Args:
+        pictures: BeautifulSoup ResultSet of img elements.
+        newspapers: Tuple of newspaper names to filter for (lowercase slugs).
+
+    Returns:
+        List of cover image URLs.
+    """
     covers = [
-        cover['data-original-src'] for cover in pictures if cover.get('data-title', '').startswith(jornais)
+        cover["src"]  # Changed from data-original-src to src
+        for cover in pictures
+        if cover.get("alt", "").lower() in newspapers  # Check alt attribute
     ]
     return covers
 
 
-def sports_covers():
+
+async def _download_image(url: str) -> Image.Image | None:
+    """Download image from URL.
+
+    Args:
+        url: Image URL to download.
+
+    Returns:
+        PIL Image object or None if download failed.
     """
-    This script should return links to the covers of the newspapers in jornais tuple
-    :return: https://ia.imgs.sapo.pt/...
+    try:
+        timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(url) as response:
+                response.raise_for_status()
+                content = await response.read()
+                return Image.open(BytesIO(content))
+    except (aiohttp.ClientError, OSError) as e:
+        logger.error(f"Error downloading image from {url}: {e}")
+        return None
+
+
+async def create_collage(urls: list[str]) -> str:
+    """Create collage from newspaper cover URLs.
+
+    Downloads images and combines them side-by-side with uniform width.
+
+    Args:
+        urls: List of image URLs to combine.
+
+    Returns:
+        Path to saved collage file.
+
+    Raises:
+        Exception: If collage creation fails.
     """
-    jornais = ('A Bola', 'O Jogo', 'Record')
+    # Download all images concurrently
+    tasks = [_download_image(url) for url in urls]
+    downloaded_images = await asyncio.gather(*tasks)
 
-    pictures = _get_pictures()
+    images = [img for img in downloaded_images if img is not None]
+    if not images:
+        raise Exception("Failed to download any images")
 
-    covers = _filter_pictures(pictures, jornais)
+    if len(images) < len(urls):
+        logger.warning(
+            f"Only downloaded {len(images)}/{len(urls)} images"
+        )
 
-    return create_collage(covers)
+    # Find maximum width
+    max_width = max(img.width for img in images)
 
+    # Scale images to same width
+    scaled_images = []
+    for img in images:
+        if img.width == max_width:
+            scaled_images.append(img)
+        else:
+            new_height = (img.height * max_width) // img.width
+            scaled_img = img.resize(
+                (max_width, new_height),
+                Image.Resampling.BICUBIC
+            )
+            scaled_images.append(scaled_img)
 
-def create_collage(_urls: list[str]) -> str:
-    images = []
-    max_width = 0
-    for url in _urls:
-        resp = requests.get(url, timeout=5.0)
-        aux = Image.open(BytesIO(resp.content))
-        images.append(aux)
-        if aux.width > max_width:
-            max_width = aux.width
-    
-    # scale the smaller images to all have the same width
-    max_height = 0
-    for i, img in enumerate(images):
-        w, h = images[i].size
-        if w == max_width:
-            continue
-        new_h = (h*max_width) // w
-        images[i] = images[i].resize((max_width, new_h), Image.Resampling.BICUBIC)
+    max_height = max(img.height for img in scaled_images)
 
-        if images[i].height > max_height:
-            max_height = images[i].height
+    # Create collage
+    collage_width = max_width * len(scaled_images)
+    collage = Image.new("RGB", (collage_width, max_height), "#FFF")
 
-    # create the blank collage, with dimensions being 3*width and the biggest height of
-    # the three images
-    
-    collage = Image.new('RGB', (3*max_width, max_height), "#FFF")
-    
-    for i, img in enumerate(images):
-        collage.paste(img, (max_width*i, 0))
+    for i, img in enumerate(scaled_images):
+        collage.paste(img, (max_width * i, 0))
 
-    if platform == 'win32':
-        _path = f"{getenv('TMP')}\\collage.jpg"
+    # Save collage
+    if platform == "win32":
+        file_path = Path.home() / "AppData" / "Local" / "Temp" / "collage.jpg"
     else:
-        _path = '/tmp/collage.jpg'
+        file_path = Path("/tmp/collage.jpg")
 
-    collage.save(_path, 'JPEG')
+    try:
+        collage.save(file_path, "JPEG")
+        logger.info(f"Collage saved to {file_path}")
+        return str(file_path)
+    except OSError as e:
+        logger.error(f"Error saving collage: {e}")
+        raise
 
-    return _path
+
+async def sports_covers() -> str:
+    """Get sports newspaper covers and create collage.
+
+    Main entry point for fetching newspaper covers.
+
+    Returns:
+        Path to collage image file.
+
+    Raises:
+        Exception: If cover retrieval or collage creation fails.
+    """
+    pictures = await _get_pictures()
+    if pictures is None:
+        raise Exception("Failed to fetch newspaper covers")
+
+    covers = _filter_pictures(pictures, NEWSPAPERS)
+    if not covers:
+        raise Exception("No newspaper covers found")
+
+    logger.info(f"Found {len(covers)} newspaper covers")
+    return await create_collage(covers)

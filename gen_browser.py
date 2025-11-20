@@ -1,39 +1,93 @@
+import logging
+import os
+from datetime import datetime
+from os.path import exists, getctime
+from pathlib import Path
+from shutil import which
+
 import selenium.webdriver.firefox.webdriver
-from selenium.webdriver.firefox.service import Service as FirefoxService
-from selenium.webdriver.firefox.options import Options
-from selenium.webdriver import Firefox
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver import Firefox
+from selenium.webdriver.firefox.options import Options
 from webdriver_manager.firefox import GeckoDriverManager
 
-from shutil import which
-from os.path import getctime
-from datetime import datetime, timedelta
-import configuration
+logger = logging.getLogger(__name__)
+
+DRIVER_UPDATE_DAYS = 5
+
+
+def _get_driver_path() -> str:
+    """Get or install geckodriver path.
+
+    Returns:
+        Path to geckodriver executable.
+    """
+    # Check if driver path is stored in environment
+    stored_path = os.getenv("SELENIUM_DRIVER_PATH")
+
+    if stored_path and exists(stored_path):
+        driver_age = getctime(stored_path)
+        days_old = (datetime.now() - datetime.fromtimestamp(driver_age)).days
+
+        if days_old <= DRIVER_UPDATE_DAYS:
+            logger.debug(f"Using existing driver: {stored_path}")
+            return stored_path
+
+        logger.info(
+            f"Driver is {days_old} days old, updating "
+            f"(threshold: {DRIVER_UPDATE_DAYS} days)"
+        )
+
+    # Install or update driver
+    logger.info("Installing/updating geckodriver")
+    driver_path = GeckoDriverManager().install()
+
+    # Save path to .env for future use
+    env_path = Path(__file__).parent / ".env"
+    if env_path.exists():
+        with open(env_path) as f:
+            lines = f.readlines()
+
+        # Update or append SELENIUM_DRIVER_PATH
+        path_found = False
+        for i, line in enumerate(lines):
+            if line.startswith("SELENIUM_DRIVER_PATH="):
+                lines[i] = f"SELENIUM_DRIVER_PATH={driver_path}\n"
+                path_found = True
+                break
+
+        if not path_found:
+            lines.append("\n# Selenium driver path (auto-managed)\n")
+            lines.append(f"SELENIUM_DRIVER_PATH={driver_path}\n")
+
+        with open(env_path, "w") as f:
+            f.writelines(lines)
+
+    return driver_path
 
 
 def gen_browser() -> selenium.webdriver.firefox.webdriver.WebDriver:
-    driver_age = None
-    driver_path = ""
-    config = configuration.read()
-    if not config.has_section("selenium"):
-        driver_path = GeckoDriverManager().install()
-        configuration.write({"selenium": {"path": driver_path}})
-    else:
-        driver_age = getctime(config["selenium"]["path"])
+    """Generate a headless Firefox WebDriver instance.
 
-    # Update driver if older than 5 days and save new path if that would be the case
-    if driver_age is not None and datetime.now() - datetime.fromtimestamp(
-        driver_age
-    ) > timedelta(days=5):
-        driver_path = GeckoDriverManager().install()
-        configuration.write({"selenium": {"path": driver_path}})
+    Manages geckodriver installation and updates. Driver is automatically
+    updated if older than 5 days.
 
-    FirefoxService(executable_path=driver_path)
+    Returns:
+        Configured Firefox WebDriver instance.
+
+    Raises:
+        WebDriverException: If browser creation fails.
+    """
+    _get_driver_path()
+
     opts = Options()
     opts.headless = True
     opts.binary_location = which("firefox")
+
     try:
         browser = Firefox(options=opts)
+        logger.debug("Firefox browser created successfully")
+        return browser
     except WebDriverException as e:
-        raise Exception(f"Could not create browser instance: \n\n{e}")
-    return browser
+        logger.error(f"Failed to create browser: {e}")
+        raise
