@@ -118,8 +118,7 @@ All commands use Discord's native slash command system (prefix: `/`):
 - `/quanto_falta` - Shows countdown to next match (requires match data)
 - `/quando_joga` - Shows when next match is scheduled (requires match data)
 - `/actualizar_data` - Updates match date from ESPN (fast, <1 second, no browser needed)
-- `/evento` - Generates formatted event text for next match
-- `/equipa_semana` - Posts SofaScore team of the week screenshot (uses thread executor for Selenium)
+- `/equipa_semana` - Posts SofaScore team of the week screenshot (rate-limited to once per day)
 - `/criar_evento` - Creates a Discord scheduled event for the next match (requires match data and Manage Events permission)
 
 All commands have proper error handling and provide user feedback on failures.

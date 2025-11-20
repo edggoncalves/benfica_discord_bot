@@ -220,26 +220,6 @@ async def actualizar_data(interaction: discord.Interaction) -> None:
 
 
 @bot.tree.command(
-    name="evento", description="Gerar texto formatado do evento do jogo"
-)
-async def evento(interaction: discord.Interaction) -> None:
-    """Generate formatted event text for next match."""
-    if not await safe_defer(interaction):
-        return
-
-    try:
-        # Run in executor since it's a synchronous function
-        loop = asyncio.get_event_loop()
-        event_text = await loop.run_in_executor(
-            None, next_match.generate_event
-        )
-        await interaction.followup.send(event_text)
-    except Exception as e:
-        logger.error(f"Error generating event: {e}")
-        await interaction.followup.send("Erro ao gerar evento.")
-
-
-@bot.tree.command(
     name="equipa_semana", description="Equipa da semana da Liga Portugal"
 )
 async def equipa_semana(interaction: discord.Interaction) -> None:
@@ -431,7 +411,6 @@ async def on_ready() -> None:
                 "`/actualizar_data` - Atualizar dados do jogo\n"
                 "`/quanto_falta` - Tempo até ao próximo jogo\n"
                 "`/quando_joga` - Quando joga o Benfica\n"
-                "`/evento` - Texto formatado do evento\n"
                 "`/criar_evento` - Criar evento no Discord"
             )
             await channel.send(startup_msg)

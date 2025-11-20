@@ -239,17 +239,22 @@ def how_long_until() -> str:
     minutes = remaining_seconds // 60
     seconds = remaining_seconds % 60
 
-    if days != 0:
-        sentence = (
-            f"{PULHAS} Falta(m) {days} dia(s), "
-            f"{hours} hora(s), {minutes} minuto(s) e {seconds} "
-            f"segundo(s) para ver o Glorioso de novo! {SLB}"
-        )
-    else:
+    # Check if match is actually today (same date)
+    is_today = (
+        now_lisbon.date() == match_dt_lisbon.date()
+    )
+
+    if is_today:
         sentence = (
             f"{PULHAS} É hoje! Já só falta(m) {hours} hora(s), "
             f"{minutes} minuto(s) e {seconds} segundo(s) para ver o "
             f"Glorioso de novo! {SLB}"
+        )
+    else:
+        sentence = (
+            f"{PULHAS} Falta(m) {days} dia(s), "
+            f"{hours} hora(s), {minutes} minuto(s) e {seconds} "
+            f"segundo(s) para ver o Glorioso de novo! {SLB}"
         )
 
     return sentence
@@ -273,27 +278,6 @@ def when_is_it() -> str:
         f"para o/a {match_data['competition']}"
     )
     return sentence
-
-
-def generate_event() -> str:
-    """Generate formatted event text for Discord.
-
-    Returns:
-        Multi-line string with match event details.
-    """
-    match_data = read_match_data()
-    match_date = datetime_match_date()
-    hour, minutes = match_date.time().isoformat().split(":")[:-1]
-
-    event_text = (
-        "```",
-        f":trophy: {match_data['competition']}",
-        f":stadium: {match_data['location']}",
-        f":alarm_clock: {hour}:{minutes}",
-        ":tv:",
-        "```",
-    )
-    return "\n".join(event_text)
 
 
 if __name__ == "__main__":
