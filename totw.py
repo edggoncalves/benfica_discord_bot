@@ -18,12 +18,18 @@ logger = logging.getLogger(__name__)
 
 # Tournament and fallback configuration
 TOURNAMENT_ID = 238  # Liga Portugal Betclic
-TOURNAMENT_URL = "https://www.sofascore.com/tournament/football/portugal/liga-portugal/238"
-TRANSFERMARKT_URL = "https://www.transfermarkt.com/liga-portugal/startseite/wettbewerb/PO1"
+TOURNAMENT_URL = (
+    "https://www.sofascore.com/tournament/football/portugal/"
+    "liga-portugal/238"
+)
+TRANSFERMARKT_URL = (
+    "https://www.transfermarkt.com/liga-portugal/startseite/wettbewerb/PO1"
+)
 
-# Round ID calculation: Based on observation, SofaScore round_id = BASE_ROUND_ID + matchday
-# This was derived from: Matchday 13 → Round ID 22537, therefore base = 22537 - 13 = 22524
-# Note: This may need adjustment if SofaScore changes their ID scheme
+# Round ID calculation: Based on observation, SofaScore round_id =
+# BASE_ROUND_ID + matchday. This was derived from: Matchday 13 → Round ID
+# 22537, therefore base = 22537 - 13 = 22524. Note: This may need
+# adjustment if SofaScore changes their ID scheme
 BASE_ROUND_ID = 22524
 
 # Fallback widget URL (will be used if dynamic extraction fails)
@@ -56,10 +62,14 @@ def _extract_current_matchday() -> int | None:
 
     try:
         logger.info(f"Extracting current matchday from {TRANSFERMARKT_URL}")
-        response = requests.get(TRANSFERMARKT_URL, impersonate="chrome", timeout=10)
+        response = requests.get(
+            TRANSFERMARKT_URL, impersonate="chrome", timeout=10
+        )
 
         if response.status_code != 200:
-            logger.warning(f"Failed to fetch Transfermarkt page: {response.status_code}")
+            logger.warning(
+                f"Failed to fetch Transfermarkt page: {response.status_code}"
+            )
             return None
 
         soup = BeautifulSoup(response.text, "html.parser")
@@ -112,14 +122,19 @@ def _extract_current_season() -> int | None:
 
     try:
         logger.info(f"Extracting current season from {TOURNAMENT_URL}")
-        response = requests.get(TOURNAMENT_URL, impersonate="chrome", timeout=10)
+        response = requests.get(
+            TOURNAMENT_URL, impersonate="chrome", timeout=10
+        )
 
         if response.status_code != 200:
-            logger.warning(f"Failed to fetch SofaScore page: {response.status_code}")
+            logger.warning(
+                f"Failed to fetch SofaScore page: {response.status_code}"
+            )
             return None
 
         # Extract Next.js data from __NEXT_DATA__ script tag using regex
-        # Pattern: <script id="__NEXT_DATA__" type="application/json">...</script>
+        # Pattern: <script id="__NEXT_DATA__"
+        # type="application/json">...</script>
         match = re.search(
             r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>',
             response.text,
@@ -146,7 +161,9 @@ def _extract_current_season() -> int | None:
             season_id = current_season.get("id")
             season_year = current_season.get("year", "unknown")
 
-            logger.info(f"Found current season: ID={season_id}, Year={season_year}")
+            logger.info(
+                f"Found current season: ID={season_id}, Year={season_year}"
+            )
 
             # Cache the result
             _cached_season_id = season_id
@@ -166,11 +183,13 @@ def _build_widget_url(
     """Build widget URL with current season and matchday, or use fallback.
 
     The widget URL requires both season and round parameters. The round ID
-    is calculated from the matchday using: round_id = BASE_ROUND_ID + matchday.
+    is calculated from the matchday using:
+    round_id = BASE_ROUND_ID + matchday.
 
     Args:
         season_id: Season ID to use. If None, uses fallback URL.
-        matchday: Current matchday number. If None, extracts from fallback URL.
+        matchday: Current matchday number. If None, extracts from
+            fallback URL.
 
     Returns:
         Widget URL string.
@@ -203,12 +222,14 @@ def _build_widget_url(
 
     # Build URL with dynamic season and round
     url = (
-        f"https://widgets.sofascore.com/embed/unique-tournament/{TOURNAMENT_ID}/"
-        f"season/{season_id}/round/{round_id}/teamOfTheWeek?"
-        "showCompetitionLogo=true&widgetTheme=light"
+        f"https://widgets.sofascore.com/embed/unique-tournament/"
+        f"{TOURNAMENT_ID}/season/{season_id}/round/{round_id}/"
+        "teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
         "&widgetTitle=Liga%20Portugal%20Betclic"
     )
-    logger.info(f"Built widget URL with season {season_id} and round {round_id}")
+    logger.info(
+        f"Built widget URL with season {season_id} and round {round_id}"
+    )
     return url
 
 
@@ -216,7 +237,8 @@ def fetch_team_week() -> DFile:
     """Fetch team of the week screenshot from SofaScore widget.
 
     Automatically extracts the current season ID and matchday, then builds
-    the widget URL dynamically. Falls back to a hardcoded URL if extraction fails.
+    the widget URL dynamically. Falls back to a hardcoded URL if extraction
+    fails.
 
     Returns:
         Discord File object containing team of the week screenshot.
@@ -258,16 +280,19 @@ def fetch_team_week() -> DFile:
         width, height = img.size
 
         # Crop to remove white space and branding at bottom
-        # Keep the top portion with the team formation (roughly 50% of height)
+        # Keep top portion with team formation (roughly 50% of height)
         crop_height = int(height * 0.5)
         cropped_img = img.crop((0, 0, width, crop_height))
 
         # Save cropped image to BytesIO
         img_bytes = BytesIO()
-        cropped_img.save(img_bytes, format='PNG')
+        cropped_img.save(img_bytes, format="PNG")
         img_bytes.seek(0)
 
-        logger.info(f"Team of the week screenshot captured and cropped ({width}x{crop_height})")
+        logger.info(
+            f"Team of the week screenshot captured and cropped "
+            f"({width}x{crop_height})"
+        )
         return DFile(img_bytes, filename="image.png")
     except Exception as e:
         logger.error(f"Failed to capture team of the week: {e}")

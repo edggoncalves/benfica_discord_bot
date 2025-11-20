@@ -16,7 +16,7 @@ import totw
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -27,9 +27,7 @@ intents = discord.Intents.default()
 intents.message_content = True  # Required to read command messages
 description = "Um bot para obter capas de jornais."
 bot = commands.Bot(
-    command_prefix="!",
-    description=description,
-    intents=intents
+    command_prefix="!", description=description, intents=intents
 )
 
 last_run = dict()
@@ -139,8 +137,7 @@ async def actualizar_data(ctx: commands.Context) -> None:
         # Run blocking Selenium operation in thread executor
         loop = asyncio.get_event_loop()
         success = await loop.run_in_executor(
-            None,
-            next_match.update_match_date
+            None, next_match.update_match_date
         )
         if success:
             await ctx.send(
@@ -171,10 +168,7 @@ async def equipa_semana(ctx: commands.Context) -> None:
     try:
         # Run blocking Selenium operation in thread executor
         loop = asyncio.get_event_loop()
-        discord_file = await loop.run_in_executor(
-            None,
-            totw.fetch_team_week
-        )
+        discord_file = await loop.run_in_executor(None, totw.fetch_team_week)
         await ctx.send(file=discord_file)
     except Exception as e:
         logger.error(f"Error fetching team of the week: {e}")
@@ -201,15 +195,17 @@ async def criar_evento(ctx: commands.Context) -> None:
             return
 
         # Parse match datetime with Lisbon timezone
-        # Match data is already in Lisbon time, so we create a timezone-aware datetime directly
+        # Match data is already in Lisbon time, so we create a
+        # timezone-aware datetime directly
         import pendulum
+
         match_dt_aware = pendulum.datetime(
             year=match_data["year"],
             month=match_data["month"],
             day=match_data["day"],
             hour=match_data["hour"],
             minute=match_data["minute"],
-            tz="Europe/Lisbon"
+            tz="Europe/Lisbon",
         )
 
         # Build event details
@@ -230,8 +226,8 @@ async def criar_evento(ctx: commands.Context) -> None:
             start_time=match_dt_aware,
             end_time=end_time,
             entity_type=discord.EntityType.external,
-            location=match_data['location'],
-            privacy_level=discord.PrivacyLevel.guild_only
+            location=match_data["location"],
+            privacy_level=discord.PrivacyLevel.guild_only,
         )
 
         await ctx.send(
@@ -307,15 +303,16 @@ async def on_ready() -> None:
             await channel.send(startup_msg)
             logger.info("Startup message sent to channel")
         else:
-            logger.warning(f"Could not find channel {channel_id} for startup message")
+            logger.warning(
+                f"Could not find channel {channel_id} for startup message"
+            )
     except Exception as e:
         logger.error(f"Error sending startup message: {e}")
 
 
 @bot.event
 async def on_command_error(
-    ctx: commands.Context,
-    error: commands.CommandError
+    ctx: commands.Context, error: commands.CommandError
 ) -> None:
     """Global error handler for bot commands."""
     if isinstance(error, commands.CommandNotFound):

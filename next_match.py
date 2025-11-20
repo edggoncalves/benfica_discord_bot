@@ -177,7 +177,7 @@ def how_long_until() -> str:
         day=match_data["day"],
         hour=match_data["hour"],
         minute=match_data["minute"],
-        tz=TZ
+        tz=TZ,
     )
 
     # Get current time in Lisbon timezone

@@ -46,17 +46,14 @@ class Calendar:
             "Sec-Fetch-User": "?1",
         }
         self.first_response = self.session.get(
-            CALENDAR_URL,
-            headers=self.first_headers,
-            timeout=30
+            CALENDAR_URL, headers=self.first_headers, timeout=30
         )
         self.soup = BeautifulSoup(
-            self.first_response.content,
-            features="html.parser"
+            self.first_response.content, features="html.parser"
         )
         token_input = self.soup.find(
             name="input",
-            attrs={"name": "__RequestVerificationToken", "type": "hidden"}
+            attrs={"name": "__RequestVerificationToken", "type": "hidden"},
         )
         self.request_verification_token = token_input["value"]
         logger.debug("Calendar client initialized")
@@ -68,16 +65,18 @@ class Calendar:
             Formatted cookie string for request headers.
         """
         cookies_dict = self.first_response.cookies.get_dict()
-        cookies = "; ".join([
-            f"benficadp#{cookies_dict['benficadp#lang']}",
-            f"ASP.NET_SessionId={cookies_dict['ASP.NET_SessionId']}",
-            f"SC_ANALYTICS_GLOBAL_COOKIE="
-            f"{cookies_dict['SC_ANALYTICS_GLOBAL_COOKIE']}",
-            f"__RequestVerificationToken="
-            f"{cookies_dict['__RequestVerificationToken']}",
-            f"TS01810e8d={cookies_dict['TS01810e8d']}",
-            f"TSbc7b53c7027={cookies_dict['TSbc7b53c7027']}",
-        ])
+        cookies = "; ".join(
+            [
+                f"benficadp#{cookies_dict['benficadp#lang']}",
+                f"ASP.NET_SessionId={cookies_dict['ASP.NET_SessionId']}",
+                f"SC_ANALYTICS_GLOBAL_COOKIE="
+                f"{cookies_dict['SC_ANALYTICS_GLOBAL_COOKIE']}",
+                f"__RequestVerificationToken="
+                f"{cookies_dict['__RequestVerificationToken']}",
+                f"TS01810e8d={cookies_dict['TS01810e8d']}",
+                f"TSbc7b53c7027={cookies_dict['TSbc7b53c7027']}",
+            ]
+        )
         return cookies
 
     def _create_payload(self) -> dict[str, Any]:
@@ -100,10 +99,10 @@ class Calendar:
                     "sr:tournament:238",
                     "sr:tournament:345",
                     "sr:tournament:327",
-                    "sr:tournament:336"
+                    "sr:tournament:336",
                 ],
                 "Seasons": [CURRENT_SEASON],
-                "PageNumber": 0
+                "PageNumber": 0,
             }
         }
         return payload
@@ -147,10 +146,7 @@ class Calendar:
         headers = self._create_headers()
         logger.debug("Fetching calendar events from API")
         response = self.session.post(
-            CALENDAR_API_URL,
-            headers=headers,
-            timeout=30,
-            allow_redirects=True
+            CALENDAR_API_URL, headers=headers, timeout=30, allow_redirects=True
         )
         response.raise_for_status()
         logger.info("Calendar events fetched successfully")

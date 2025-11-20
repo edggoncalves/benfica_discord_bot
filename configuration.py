@@ -73,7 +73,10 @@ def setup_interactive() -> None:
 
     # Get Discord bot token
     print("1. Discord Bot Token")
-    print("   Get your token from: https://discord.com/developers/applications")
+    print(
+        "   Get your token from: "
+        "https://discord.com/developers/applications"
+    )
     token = input("   Enter your Discord bot token: ").strip()
     while not token:
         print("   Error: Token cannot be empty!")

@@ -11,7 +11,8 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 URL = "https://24.sapo.pt/jornais/desporto"
-NEWSPAPERS = ("a-bola", "o-jogo", "record")  # Changed to match img alt attributes
+# Changed to match img alt attributes
+NEWSPAPERS = ("a-bola", "o-jogo", "record")
 MAX_RETRIES = 3
 REQUEST_TIMEOUT = 5.0
 
@@ -46,9 +47,7 @@ async def _fetch_html(url: str) -> bytes | None:
                 f"Request timeout (attempt {attempt + 1}/{MAX_RETRIES})"
             )
             if attempt == MAX_RETRIES - 1:
-                logger.error(
-                    f"Max retries exceeded for {url} (timeout)"
-                )
+                logger.error(f"Max retries exceeded for {url} (timeout)")
                 return None
     return None
 
@@ -72,10 +71,8 @@ async def _get_pictures() -> element.ResultSet | None:
         return None
 
 
-
 def _filter_pictures(
-    pictures: element.ResultSet,
-    newspapers: tuple[str, ...]
+    pictures: element.ResultSet, newspapers: tuple[str, ...]
 ) -> list[str]:
     """Filter image elements to get desired newspaper covers.
 
@@ -92,7 +89,6 @@ def _filter_pictures(
         if cover.get("alt", "").lower() in newspapers  # Check alt attribute
     ]
     return covers
-
 
 
 async def _download_image(url: str) -> Image.Image | None:
@@ -139,9 +135,7 @@ async def create_collage(urls: list[str]) -> str:
         raise Exception("Failed to download any images")
 
     if len(images) < len(urls):
-        logger.warning(
-            f"Only downloaded {len(images)}/{len(urls)} images"
-        )
+        logger.warning(f"Only downloaded {len(images)}/{len(urls)} images")
 
     # Find maximum width
     max_width = max(img.width for img in images)
@@ -154,8 +148,7 @@ async def create_collage(urls: list[str]) -> str:
         else:
             new_height = (img.height * max_width) // img.width
             scaled_img = img.resize(
-                (max_width, new_height),
-                Image.Resampling.BICUBIC
+                (max_width, new_height), Image.Resampling.BICUBIC
             )
             scaled_images.append(scaled_img)
 
