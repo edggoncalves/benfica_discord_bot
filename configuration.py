@@ -3,9 +3,21 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
+# Path to .env file
 env_path = Path(__file__).parent / ".env"
-load_dotenv(dotenv_path=env_path)
+_env_loaded = False
+
+
+def _ensure_env_loaded() -> None:
+    """Load environment variables from .env file if not already loaded.
+
+    Only loads if the .env file exists. Should be called before accessing
+    any environment variables.
+    """
+    global _env_loaded
+    if not _env_loaded and env_path.exists():
+        load_dotenv(dotenv_path=env_path, override=True)
+        _env_loaded = True
 
 
 def exists() -> bool:
@@ -27,6 +39,7 @@ def get(key: str, default: str | None = None) -> str | None:
     Returns:
         Configuration value or default.
     """
+    _ensure_env_loaded()
     return os.getenv(key, default)
 
 
@@ -42,6 +55,7 @@ def get_required(key: str) -> str:
     Raises:
         ValueError: If required key is not found.
     """
+    _ensure_env_loaded()
     value = os.getenv(key)
     if value is None:
         raise ValueError(f"Required environment variable '{key}' not found")
@@ -98,6 +112,11 @@ SCHEDULE_HOUR={hour}
 
     with open(env_path, "w") as f:
         f.write(env_content)
+
+    # Load the newly created .env file
+    global _env_loaded
+    _env_loaded = False
+    _ensure_env_loaded()
 
     print(f"\n✓ Configuration saved to {env_path}")
     print("\nYou can now start the bot with: uv run python bot.py")
