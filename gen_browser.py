@@ -81,29 +81,52 @@ def gen_browser() -> selenium.webdriver.firefox.webdriver.WebDriver:
     """
     driver_path = _get_driver_path()
 
+    # Force headless mode via environment variable
+    os.environ["MOZ_HEADLESS"] = "1"
+
     opts = Options()
     opts.headless = True
+    opts.add_argument("--headless")
+
     firefox_binary = which("firefox")
     if firefox_binary:
         opts.binary_location = firefox_binary
 
-    # Additional options for stability in headless environments
-    opts.add_argument("--no-sandbox")
-    opts.add_argument("--disable-dev-shm-usage")
-    opts.add_argument("--disable-gpu")
+    # Minimal window size to reduce memory usage
+    opts.add_argument("--width=1280")
+    opts.add_argument("--height=720")
 
-    # Set preferences to avoid potential issues
+    # Critical: Disable features that cause crashes
     opts.set_preference("browser.cache.disk.enable", False)
     opts.set_preference("browser.cache.memory.enable", False)
-    opts.set_preference("browser.cache.offline.enable", False)
-    opts.set_preference("network.http.use-cache", False)
+    opts.set_preference("media.autoplay.enabled", False)
+    opts.set_preference("media.video_stats.enabled", False)
 
-    # Create service with explicit driver path
-    service = Service(executable_path=driver_path)
+    # Prevent Firefox from using too much memory
+    opts.set_preference("browser.sessionhistory.max_entries", 1)
+    opts.set_preference("browser.sessionhistory.max_total_viewers", 0)
+    opts.set_preference("javascript.options.mem.max", 256 * 1024 * 1024)  # 256MB limit
+
+    # Disable single-use features that can crash
+    opts.set_preference("gfx.webrender.all", False)
+    opts.set_preference("layers.acceleration.disabled", True)
+
+    # Create service with minimal logging
+    service = Service(
+        executable_path=driver_path,
+        log_output=os.devnull,
+    )
 
     try:
+        logger.info("Initializing Firefox browser in headless mode...")
         browser = Firefox(service=service, options=opts)
-        logger.debug("Firefox browser created successfully")
+
+        # CRITICAL: Set timeouts BEFORE any page operations
+        # These must be set immediately after browser creation
+        browser.set_page_load_timeout(120)
+        browser.set_script_timeout(120)
+
+        logger.info("Firefox browser created successfully")
         return browser
     except WebDriverException as e:
         logger.error(f"Failed to create browser: {e}")

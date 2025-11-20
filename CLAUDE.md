@@ -58,14 +58,16 @@ SCHEDULE_HOUR=8
 
 **[next_match.py](next_match.py)** - Match scheduling
 
-- Scrapes SL Benfica's official calendar using Selenium
-- Extracts next match date, adversary, location, competition
+- Scrapes Benfica fixtures from ESPN using `requests` only (no Selenium required!)
+- Extracts embedded JSON data from `window['__espnfitt__']` in ESPN page source
+- Fast (<1 second) and works reliably on any VPS without memory issues
+- Extracts next match date, adversary, location, competition, home/away status
 - Stores match data in `match_data.json` (separate from configuration)
 - Formats messages with timezone handling (Europe/Lisbon)
-- Functions: `read_match_data()`, `write_match_data()`
+- Functions: `read_match_data()`, `write_match_data()`, `update_match_date()`
 - `update_match_date()` returns bool for success/failure
-- Comprehensive error handling with proper browser cleanup
-- Currently disabled in bot (commands return "Para breve...")
+- Comprehensive error handling for HTTP requests and JSON parsing
+- Can be tested standalone: `uv run python next_match.py`
 
 **[gen_browser.py](gen_browser.py)** - Selenium browser factory
 - Creates headless Firefox WebDriver instances
@@ -115,14 +117,14 @@ All commands use Discord's native slash command system (prefix: `/`):
 - `/capas` - Posts newspaper covers immediately (prevents automatic post that day)
 - `/quanto_falta` - Shows countdown to next match (requires match data)
 - `/quando_joga` - Shows when next match is scheduled (requires match data)
-- `/actualizar_data` - Updates match date from website, provides feedback on success/failure (uses thread executor for Selenium)
+- `/actualizar_data` - Updates match date from ESPN (fast, <1 second, no browser needed)
 - `/evento` - Generates formatted event text for next match
 - `/equipa_semana` - Posts SofaScore team of the week screenshot (uses thread executor for Selenium)
 - `/criar_evento` - Creates a Discord scheduled event for the next match (requires match data and Manage Events permission)
 
 All commands have proper error handling and provide user feedback on failures.
 
-**Performance optimization**: Selenium operations (`/actualizar_data`, `/equipa_semana`) run in thread executors to avoid blocking Discord's async event loop.
+**Performance optimization**: `/equipa_semana` runs Selenium in a thread executor to avoid blocking Discord's async event loop. `/actualizar_data` is now fast enough to run directly without threading.
 
 ### Scheduled Tasks
 
@@ -146,11 +148,12 @@ All commands have proper error handling and provide user feedback on failures.
 
 ### Browser Automation
 
-All Selenium operations use Firefox in headless mode:
+Selenium operations (where needed) use Firefox in headless mode:
 - [gen_browser.py](gen_browser.py) provides centralized browser creation
-- Used by [next_match.py](next_match.py) and [totw.py](totw.py)
+- Currently only used by [totw.py](totw.py) for SofaScore screenshots
+- [next_match.py](next_match.py) now uses requests-only approach (no browser needed)
 - Proper cleanup in try/finally blocks prevents resource leaks
-- Requires Firefox installed on system
+- Requires Firefox installed on system for TOTW feature
 
 ### Timezone Handling
 
@@ -184,12 +187,14 @@ All Selenium operations use Firefox in headless mode:
 
 ## Development Notes
 
-### Disabled Features
+### Match Features
 
-Match-related features (`!quanto_falta`, `!quando_joga`) are temporarily disabled:
-- Commands return placeholder text "Para breve..."
-- Original implementation in [next_match.py](next_match.py) is fully functional
-- Can be re-enabled by uncommenting lines in command functions
+Match-related features (`/quanto_falta`, `/quando_joga`, `/actualizar_data`) are fully functional:
+
+- Now use ESPN as data source (fast and reliable)
+- No Selenium dependency for match scraping
+- Work on any VPS without resource concerns
+- Update match data with `/actualizar_data` command
 
 ### Resource Management
 

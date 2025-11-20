@@ -1,24 +1,33 @@
 import json
 import logging
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from time import mktime
 
 import pendulum
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as ec
-from selenium.webdriver.support.ui import WebDriverWait
-
-from gen_browser import gen_browser
+import requests
+from fake_useragent import UserAgent
 
 logger = logging.getLogger(__name__)
 
 MATCH_DATA_FILE = Path(__file__).parent / "match_data.json"
 
 PULHAS = "<:pulhas:867780231116095579>"
-SLB = "<:slb:240116451782950914>"
-URL = "https://www.slbenfica.pt/pt-pt/futebol/calendario"
+SLB = "<:slb:240116451782650914>"
+ESPN_URL = "https://www.espn.com/soccer/team/fixtures/_/id/1929"
+
+# Initialize user agent generator
+ua = UserAgent()
+
+
+def _get_headers() -> dict:
+    """Generate realistic browser headers.
+
+    Returns:
+        Dictionary with User-Agent header.
+    """
+    return {"User-Agent": ua.random}
 TZ = "Europe/Lisbon"
 WEEKDAY = {
     1: "Segunda-feira",
@@ -32,64 +41,99 @@ WEEKDAY = {
 
 
 def get_next_match() -> dict | None:
-    """Scrape next match information from SL Benfica website.
+    """Scrape next match from ESPN using requests only (no Selenium).
 
     Returns:
         Dict with match data (date, adversary, location, competition)
         or None if no match found or error occurs.
     """
-    browser = gen_browser()
     try:
-        browser.get(URL)
-        calendar_obj = WebDriverWait(browser, 3).until(
-            ec.presence_of_element_located(
-                (By.CLASS_NAME, "calendar-match-info")
-            )
-        )
-        next_match_date = calendar_obj.find_element(
-            By.CLASS_NAME, "startDateForCalendar"
-        ).get_attribute("textContent")
-        match_date = datetime.strptime(
-            next_match_date, r"%m/%d/%Y %I:%M:%S %p"
-        )
+        logger.info(f"Fetching ESPN fixtures from {ESPN_URL}")
+        response = requests.get(ESPN_URL, headers=_get_headers(), timeout=30)
+        response.raise_for_status()
+        logger.info(f"Page fetched successfully ({len(response.text)} bytes)")
 
-        title_element = calendar_obj.find_element(
-            By.CLASS_NAME, "titleForCalendar"
-        )
-        teams = [
-            i.strip()
-            for i in title_element.get_attribute("textContent").split("vs")
-        ]
-        teams.pop(teams.index("SL Benfica"))
-        adversary = teams[0]
+        # Extract embedded JSON data from window['__espnfitt__']
+        pattern = r"window\['__espnfitt__'\]\s*=\s*({.*?});"
+        matches = re.findall(pattern, response.text, re.DOTALL)
 
-        location = calendar_obj.find_element(
-            By.CLASS_NAME, "locationForCalendar"
-        ).get_attribute("textContent")
+        if not matches:
+            logger.error("Could not find __espnfitt__ data in page")
+            return None
 
-        competition = browser.find_element(
-            By.CLASS_NAME, "calendar-competition"
-        ).text
+        logger.info("Found __espnfitt__ data, parsing JSON...")
+        data = json.loads(matches[0])
+
+        # Navigate to fixtures
+        fixtures = data.get("page", {}).get("content", {}).get("fixtures", {})
+        events = fixtures.get("events", [])
+
+        if not events:
+            logger.error("No events found in fixtures data")
+            return None
+
+        logger.info(f"Found {len(events)} upcoming matches")
+
+        # Get first event (they're sorted chronologically)
+        event = events[0]
+
+        # Extract match data
+        date_str = event.get("date")
+        if not date_str:
+            logger.error("No date in first event")
+            return None
+
+        # Parse ISO 8601 date
+        match_date = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+
+        # Get competition info
+        competition = event.get("league", "Unknown Competition")
+
+        # Get teams (directly from event.competitors)
+        competitors = event.get("competitors", [])
+        home_team = away_team = None
+        for team in competitors:
+            if team.get("isHome"):
+                home_team = team.get("displayName")
+            else:
+                away_team = team.get("displayName")
+
+        # Determine adversary and home/away status
+        if home_team and "Benfica" in home_team:
+            adversary = away_team or "Unknown"
+            is_home = True
+        else:
+            adversary = home_team or "Unknown"
+            is_home = False
+
+        # Get venue
+        venue = event.get("venue", {})
+        location = venue.get("fullName", "Unknown Venue")
 
         match_data = {
             "date": match_date,
             "adversary": adversary,
             "location": location,
             "competition": competition,
+            "is_home": is_home,
         }
+
+        logger.info(
+            f"Match data scraped: {adversary} on {match_date} at {location}"
+        )
         return match_data
 
-    except TimeoutException:
-        logger.warning("Timeout waiting for calendar element")
+    except requests.RequestException as e:
+        logger.error(f"HTTP request failed: {e}")
         return None
-    except WebDriverException as e:
-        logger.error(f"WebDriver error: {e}")
+    except (json.JSONDecodeError, KeyError, IndexError) as e:
+        logger.error(f"Failed to parse ESPN data: {e}")
         return None
     except Exception as e:
         logger.error(f"Unexpected error getting match data: {e}")
+        import traceback
+        logger.error(f"Traceback:\n{traceback.format_exc()}")
         return None
-    finally:
-        browser.quit()
 
 
 def write_match_data(info: dict) -> None:
@@ -250,3 +294,17 @@ def generate_event() -> str:
         "```",
     )
     return "\n".join(event_text)
+
+
+if __name__ == "__main__":
+    # Test the ESPN scraper
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s - %(message)s"
+    )
+    success = update_match_date()
+    print(f"\nResult: {'Success' if success else 'Failed'}")
+    if success:
+        with open(MATCH_DATA_FILE) as f:
+            print(json.dumps(json.load(f), indent=2, ensure_ascii=False))

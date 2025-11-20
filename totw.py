@@ -279,9 +279,9 @@ def fetch_team_week() -> DFile:
         img = Image.open(BytesIO(screenshot_bytes))
         width, height = img.size
 
-        # Crop to remove white space and branding at bottom
-        # Keep top portion with team formation (roughly 50% of height)
-        crop_height = int(height * 0.5)
+        # Crop to remove excessive white space and branding at bottom
+        # Keep top portion with team formation (roughly 75% of height)
+        crop_height = int(height * 0.75)
         cropped_img = img.crop((0, 0, width, crop_height))
 
         # Save cropped image to BytesIO
@@ -299,3 +299,29 @@ def fetch_team_week() -> DFile:
         raise
     finally:
         browser.quit()
+
+
+if __name__ == "__main__":
+    # Test the team of the week scraper
+    import logging
+
+    logging.basicConfig(
+        level=logging.INFO, format="%(levelname)s - %(message)s"
+    )
+
+    try:
+        print("\nFetching team of the week...")
+        discord_file = fetch_team_week()
+
+        # Save to local file for inspection
+        output_path = "totw_test.png"
+        with open(output_path, "wb") as f:
+            discord_file.fp.seek(0)  # Reset file pointer
+            f.write(discord_file.fp.read())
+
+        print(f"\n✅ Success! Screenshot saved to {output_path}")
+        print(f"File size: {discord_file.fp.tell()} bytes")
+    except Exception as e:
+        print(f"\n❌ Failed: {e}")
+        import traceback
+        traceback.print_exc()

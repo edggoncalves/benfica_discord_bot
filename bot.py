@@ -32,6 +32,7 @@ bot = commands.Bot(
 )
 
 last_run = dict()
+last_totw_run = dict()  # Track last team of the week command execution
 
 # Configuration variables (loaded at startup)
 channel_id: int
@@ -199,21 +200,23 @@ async def actualizar_data(interaction: discord.Interaction) -> None:
         return
 
     try:
-        # Run blocking Selenium operation in thread executor
+        # Fast requests-only operation (no thread executor needed)
         loop = asyncio.get_event_loop()
         success = await loop.run_in_executor(
             None, next_match.update_match_date
         )
         if success:
             await interaction.followup.send(
-                "Data do jogo actualizada. "
+                "✅ Data do jogo actualizada. "
                 "Testa com `/quando_joga` ou `/quanto_falta`"
             )
         else:
-            await interaction.followup.send("Erro ao actualizar data do jogo.")
+            await interaction.followup.send(
+                "❌ Erro ao actualizar data do jogo."
+            )
     except Exception as e:
         logger.error(f"Error updating match date: {e}")
-        await interaction.followup.send("Erro ao actualizar data do jogo.")
+        await interaction.followup.send("❌ Erro ao actualizar data do jogo.")
 
 
 @bot.tree.command(
@@ -244,11 +247,29 @@ async def equipa_semana(interaction: discord.Interaction) -> None:
     if not await safe_defer(interaction):
         return
 
+    # Check if already run today (rate limiting)
+    today = {datetime.now().month: datetime.now().day}
+    if last_totw_run == today:
+        logger.info(
+            f"Team of the week already fetched today by "
+            f"{interaction.user}, denying request"
+        )
+        await interaction.followup.send(
+            "⏰ Este comando já foi executado hoje. "
+            "Por favor tenta novamente amanhã.\n"
+            "(Este comando é pesado e só pode ser usado uma vez por dia)"
+        )
+        return
+
     try:
         # Run blocking Selenium operation in thread executor
         loop = asyncio.get_event_loop()
         discord_file = await loop.run_in_executor(None, totw.fetch_team_week)
         await interaction.followup.send(file=discord_file)
+
+        # Mark as run today
+        last_totw_run.update(today)
+        logger.info("Team of the week posted successfully, marked as run today")
     except Exception as e:
         logger.error(f"Error fetching team of the week: {e}")
         await interaction.followup.send("Erro ao obter equipa da semana.")
