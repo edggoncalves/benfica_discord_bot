@@ -29,12 +29,13 @@ SCHEDULE_HOUR=8
 ### Core Components
 
 **[bot.py](bot.py)** - Main Discord bot entry point
-- Defines Discord commands (prefix: `!`)
+- Uses Discord slash commands (prefix: `/`)
+- Syncs commands with Discord API on startup
 - Configures APScheduler for daily automated posts at specified hour
 - Sends startup message to configured channel when bot comes online
 - Implements comprehensive error handling and logging
 - All commands have type hints and docstrings
-- Global error handler for graceful failure recovery
+- Global error handler for slash commands with graceful failure recovery
 
 **[configuration.py](configuration.py)** - Configuration management
 
@@ -109,17 +110,19 @@ All modules use Python's `logging` module:
 
 ### Discord Commands
 
-- `!capas` - Posts newspaper covers immediately (prevents automatic post that day)
-- `!quanto_falta` - Shows countdown to next match (requires match data)
-- `!quando_joga` - Shows when next match is scheduled (requires match data)
-- `!actualizar_data` - Updates match date from website, provides feedback on success/failure (uses thread executor for Selenium)
-- `!evento` - Generates formatted event text for next match
-- `!equipa_semana` - Posts SofaScore team of the week screenshot (uses thread executor for Selenium)
-- `!criar_evento` - Creates a Discord scheduled event for the next match (requires match data and Manage Events permission)
+All commands use Discord's native slash command system (prefix: `/`):
+
+- `/capas` - Posts newspaper covers immediately (prevents automatic post that day)
+- `/quanto_falta` - Shows countdown to next match (requires match data)
+- `/quando_joga` - Shows when next match is scheduled (requires match data)
+- `/actualizar_data` - Updates match date from website, provides feedback on success/failure (uses thread executor for Selenium)
+- `/evento` - Generates formatted event text for next match
+- `/equipa_semana` - Posts SofaScore team of the week screenshot (uses thread executor for Selenium)
+- `/criar_evento` - Creates a Discord scheduled event for the next match (requires match data and Manage Events permission)
 
 All commands have proper error handling and provide user feedback on failures.
 
-**Performance optimization**: Selenium operations (`!actualizar_data`, `!equipa_semana`) run in thread executors to avoid blocking Discord's async event loop.
+**Performance optimization**: Selenium operations (`/actualizar_data`, `/equipa_semana`) run in thread executors to avoid blocking Discord's async event loop.
 
 ### Scheduled Tasks
 
