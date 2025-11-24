@@ -86,9 +86,11 @@ def _filter_pictures(
         if cover.get("alt", "").lower() in newspapers:
             url = cover["src"]
             # SAPO thumbs service uses W= and H= for dimensions
-            # Replace with high-res parameters (1000x1500)
+            # Replace with high-res parameters and remove cropping
             url = re.sub(r"W=\d+", "W=1000", url)
             url = re.sub(r"H=\d+", "H=1500", url)
+            # Remove crop parameter to get full uncropped image
+            url = re.sub(r"&crop=center", "", url)
             covers.append(url)
     return covers
 

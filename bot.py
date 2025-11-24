@@ -150,14 +150,19 @@ async def send_covers(
             await interaction.followup.send(ERROR_COVERS_FILE_READ)
             return
 
-        # Send each image as a separate message
+        # Create Discord File objects for all covers
+        discord_files = []
+        newspaper_names = ["a_bola", "o_jogo", "record"]
         for i, image_data in enumerate(images_data):
-            newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
+            newspaper = newspaper_names[i] if i < len(newspaper_names) else f"jornal_{i+1}"
             discord_file = discord.File(
                 BytesIO(image_data),
-                filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
+                filename=f"{newspaper}.jpg"
             )
-            await interaction.followup.send(file=discord_file)
+            discord_files.append(discord_file)
+
+        # Send all images in one message
+        await interaction.followup.send(files=discord_files)
 
     except aiohttp.ClientError as e:
         logger.error(f"Error downloading images: {e}")
@@ -383,21 +388,35 @@ async def daily_covers() -> None:
 
         cover_urls = await covers.sports_covers()
 
-        # Download and send each cover
+        # Download all covers
+        images_data = []
         async with aiohttp.ClientSession() as session:
-            for i, url in enumerate(cover_urls):
+            for url in cover_urls:
                 try:
                     async with session.get(url) as response:
                         if response.status == 200:
                             data = await response.read()
-                            newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
-                            discord_file = discord.File(
-                                BytesIO(data),
-                                filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
-                            )
-                            await channel.send(file=discord_file)
+                            images_data.append(data)
                 except Exception as e:
-                    logger.error(f"Error downloading/sending cover {i}: {e}")
+                    logger.error(f"Error downloading cover: {e}")
+
+        if not images_data:
+            logger.error("Failed to download any covers")
+            return
+
+        # Create Discord File objects for all covers
+        discord_files = []
+        newspaper_names = ["a_bola", "o_jogo", "record"]
+        for i, image_data in enumerate(images_data):
+            newspaper = newspaper_names[i] if i < len(newspaper_names) else f"jornal_{i+1}"
+            discord_file = discord.File(
+                BytesIO(image_data),
+                filename=f"{newspaper}.jpg"
+            )
+            discord_files.append(discord_file)
+
+        # Send all covers in one message
+        await channel.send(files=discord_files)
 
         last_run.update(_today_key())
         logger.info("Daily covers posted successfully")
