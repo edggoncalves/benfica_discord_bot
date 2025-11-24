@@ -135,19 +135,16 @@ async def send_covers(
     try:
         # Download all images concurrently
         async with aiohttp.ClientSession() as session:
-            tasks = []
-            for url in cover_urls:
-                tasks.append(session.get(url))
-
-            responses = await asyncio.gather(*tasks)
-
-            # Read image data from responses
+            # Download each image
             images_data = []
-            for response in responses:
-                if response.status == 200:
-                    data = await response.read()
-                    images_data.append(data)
-                await response.close()
+            for url in cover_urls:
+                try:
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            data = await response.read()
+                            images_data.append(data)
+                except Exception as e:
+                    logger.error(f"Error downloading {url}: {e}")
 
         if not images_data:
             await interaction.followup.send(ERROR_COVERS_FILE_READ)
@@ -386,25 +383,21 @@ async def daily_covers() -> None:
 
         cover_urls = await covers.sports_covers()
 
-        # Download all images concurrently
+        # Download and send each cover
         async with aiohttp.ClientSession() as session:
-            tasks = []
-            for url in cover_urls:
-                tasks.append(session.get(url))
-
-            responses = await asyncio.gather(*tasks)
-
-            # Read image data and send each cover
-            for i, response in enumerate(responses):
-                if response.status == 200:
-                    data = await response.read()
-                    newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
-                    discord_file = discord.File(
-                        BytesIO(data),
-                        filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
-                    )
-                    await channel.send(file=discord_file)
-                await response.close()
+            for i, url in enumerate(cover_urls):
+                try:
+                    async with session.get(url) as response:
+                        if response.status == 200:
+                            data = await response.read()
+                            newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
+                            discord_file = discord.File(
+                                BytesIO(data),
+                                filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
+                            )
+                            await channel.send(file=discord_file)
+                except Exception as e:
+                    logger.error(f"Error downloading/sending cover {i}: {e}")
 
         last_run.update(_today_key())
         logger.info("Daily covers posted successfully")
