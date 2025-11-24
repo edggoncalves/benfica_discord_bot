@@ -1,8 +1,9 @@
 import asyncio
 import logging
 from datetime import datetime
-from pathlib import Path
+from io import BytesIO
 
+import aiohttp
 import discord
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -14,7 +15,6 @@ import next_match
 import totw
 from immutables import (
     ERROR_COVERS_FETCH,
-    ERROR_COVERS_FILE_NOT_FOUND,
     ERROR_COVERS_FILE_READ,
     ERROR_COVERS_SEND,
     ERROR_EVENT_CREATE,
@@ -123,26 +123,47 @@ async def safe_defer(interaction: discord.Interaction) -> bool:
         return False
 
 
-async def send_collage(
-    interaction: discord.Interaction, file_path: str
+async def send_covers(
+    interaction: discord.Interaction, cover_urls: list[str]
 ) -> None:
-    """Send newspaper collage file to Discord.
+    """Send newspaper cover images to Discord.
 
     Args:
         interaction: Discord interaction from slash command.
-        file_path: Path to collage image file.
+        cover_urls: List of cover image URLs.
     """
     try:
-        path = Path(file_path)
-        if not path.exists():
-            await interaction.followup.send(ERROR_COVERS_FILE_NOT_FOUND)
+        # Download all images concurrently
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for url in cover_urls:
+                tasks.append(session.get(url))
+
+            responses = await asyncio.gather(*tasks)
+
+            # Read image data from responses
+            images_data = []
+            for response in responses:
+                if response.status == 200:
+                    data = await response.read()
+                    images_data.append(data)
+                await response.close()
+
+        if not images_data:
+            await interaction.followup.send(ERROR_COVERS_FILE_READ)
             return
 
-        with open(path, "rb") as fp:
-            discord_file = discord.File(fp, filename="collage.jpg")
-        await interaction.followup.send(file=discord_file)
-    except OSError as e:
-        logger.error(f"File operation error: {e}")
+        # Send each image as a separate message
+        for i, image_data in enumerate(images_data):
+            newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
+            discord_file = discord.File(
+                BytesIO(image_data),
+                filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
+            )
+            await interaction.followup.send(file=discord_file)
+
+    except aiohttp.ClientError as e:
+        logger.error(f"Error downloading images: {e}")
         await interaction.followup.send(ERROR_COVERS_FILE_READ)
     except discord.DiscordException as e:
         logger.error(f"Discord error sending file: {e}")
@@ -162,10 +183,10 @@ async def capas(interaction: discord.Interaction) -> None:
 
     logger.info("Defer succeeded, fetching covers")
     try:
-        file_path = await covers.sports_covers()
+        cover_urls = await covers.sports_covers()
         last_run.update(_today_key())
-        logger.info(f"Covers fetched, sending collage from {file_path}")
-        await send_collage(interaction, file_path)
+        logger.info(f"Covers fetched, sending {len(cover_urls)} images")
+        await send_covers(interaction, cover_urls)
         logger.info("Capas command completed successfully")
     except Exception as e:
         logger.error(f"Error in capas command: {e}")
@@ -363,15 +384,28 @@ async def daily_covers() -> None:
             logger.error(f"Channel {channel_id} not found")
             return
 
-        file_path = await covers.sports_covers()
-        path = Path(file_path)
-        if not path.exists():
-            logger.error(f"Collage file not found: {file_path}")
-            return
+        cover_urls = await covers.sports_covers()
 
-        with open(path, "rb") as fp:
-            discord_file = discord.File(fp, "collage.jpg")
-        await channel.send(file=discord_file)
+        # Download all images concurrently
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for url in cover_urls:
+                tasks.append(session.get(url))
+
+            responses = await asyncio.gather(*tasks)
+
+            # Read image data and send each cover
+            for i, response in enumerate(responses):
+                if response.status == 200:
+                    data = await response.read()
+                    newspaper_name = ["A Bola", "O Jogo", "Record"][i] if i < 3 else f"Jornal {i+1}"
+                    discord_file = discord.File(
+                        BytesIO(data),
+                        filename=f"{newspaper_name.lower().replace(' ', '_')}.jpg"
+                    )
+                    await channel.send(file=discord_file)
+                await response.close()
+
         last_run.update(_today_key())
         logger.info("Daily covers posted successfully")
 

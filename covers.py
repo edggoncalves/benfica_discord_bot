@@ -1,9 +1,6 @@
-import asyncio
 import logging
 import re
 from io import BytesIO
-from pathlib import Path
-from sys import platform
 
 import aiohttp
 from bs4 import BeautifulSoup, element
@@ -117,80 +114,16 @@ async def _download_image(url: str) -> Image.Image | None:
         return None
 
 
-async def create_collage(urls: list[str]) -> str:
-    """Create collage from newspaper cover URLs.
-
-    Downloads images and combines them side-by-side with uniform width.
-
-    Args:
-        urls: List of image URLs to combine.
-
-    Returns:
-        Path to saved collage file.
-
-    Raises:
-        Exception: If collage creation fails.
-    """
-    # Download all images concurrently
-    tasks = [_download_image(url) for url in urls]
-    downloaded_images = await asyncio.gather(*tasks)
-
-    images = [img for img in downloaded_images if img is not None]
-    if not images:
-        raise Exception("Failed to download any images")
-
-    if len(images) < len(urls):
-        logger.warning(f"Only downloaded {len(images)}/{len(urls)} images")
-
-    # Find maximum width
-    max_width = max(img.width for img in images)
-
-    # Scale images to same width
-    scaled_images = []
-    for img in images:
-        if img.width == max_width:
-            scaled_images.append(img)
-        else:
-            new_height = (img.height * max_width) // img.width
-            scaled_img = img.resize(
-                (max_width, new_height), Image.Resampling.BICUBIC
-            )
-            scaled_images.append(scaled_img)
-
-    max_height = max(img.height for img in scaled_images)
-
-    # Create collage
-    collage_width = max_width * len(scaled_images)
-    collage = Image.new("RGB", (collage_width, max_height), "#FFF")
-
-    for i, img in enumerate(scaled_images):
-        collage.paste(img, (max_width * i, 0))
-
-    # Save collage
-    if platform == "win32":
-        file_path = Path.home() / "AppData" / "Local" / "Temp" / "collage.jpg"
-    else:
-        file_path = Path("/tmp/collage.jpg")
-
-    try:
-        collage.save(file_path, "JPEG")
-        logger.info(f"Collage saved to {file_path}")
-        return str(file_path)
-    except OSError as e:
-        logger.error(f"Error saving collage: {e}")
-        raise
-
-
-async def sports_covers() -> str:
-    """Get sports newspaper covers and create collage.
+async def sports_covers() -> list[str]:
+    """Get sports newspaper cover URLs.
 
     Main entry point for fetching newspaper covers.
 
     Returns:
-        Path to collage image file.
+        List of high-resolution cover image URLs.
 
     Raises:
-        Exception: If cover retrieval or collage creation fails.
+        Exception: If cover retrieval fails.
     """
     pictures = await _get_pictures()
     if pictures is None:
@@ -201,4 +134,4 @@ async def sports_covers() -> str:
         raise Exception("No newspaper covers found")
 
     logger.info(f"Found {len(covers)} newspaper covers")
-    return await create_collage(covers)
+    return covers
