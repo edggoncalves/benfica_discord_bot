@@ -1,20 +1,21 @@
 import json
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from time import mktime
 
 import pendulum
 import requests
 from fake_useragent import UserAgent
 
+from immutables import PULHAS, SLB, TIMEZONE, WEEKDAY
+
 logger = logging.getLogger(__name__)
 
+# File paths
 MATCH_DATA_FILE = Path(__file__).parent / "match_data.json"
 
-PULHAS = "<:pulhas:867780231116095579>"
-SLB = "<:slb:240116451782650914>"
+# ESPN configuration
 ESPN_URL = "https://www.espn.com/soccer/team/fixtures/_/id/1929"
 
 # Initialize user agent generator
@@ -28,16 +29,6 @@ def _get_headers() -> dict:
         Dictionary with User-Agent header.
     """
     return {"User-Agent": ua.random}
-TZ = "Europe/Lisbon"
-WEEKDAY = {
-    1: "Segunda-feira",
-    2: "Terça-feira",
-    3: "Quarta-feira",
-    4: "Quinta-feira",
-    5: "Sexta-feira",
-    6: "Sábado",
-    7: "Domingo",
-}
 
 
 def get_next_match() -> dict | None:
@@ -132,6 +123,7 @@ def get_next_match() -> dict | None:
     except Exception as e:
         logger.error(f"Unexpected error getting match data: {e}")
         import traceback
+
         logger.error(f"Traceback:\n{traceback.format_exc()}")
         return None
 
@@ -206,6 +198,25 @@ def datetime_match_date() -> datetime:
     return match_date
 
 
+def _match_data_to_pendulum(match_data: dict) -> pendulum.DateTime:
+    """Convert match data dict to timezone-aware pendulum datetime.
+
+    Args:
+        match_data: Dictionary with year, month, day, hour, minute keys.
+
+    Returns:
+        Timezone-aware pendulum datetime in Lisbon timezone.
+    """
+    return pendulum.datetime(
+        year=match_data["year"],
+        month=match_data["month"],
+        day=match_data["day"],
+        hour=match_data["hour"],
+        minute=match_data["minute"],
+        tz=TIMEZONE,
+    )
+
+
 def how_long_until() -> str:
     """Generate message showing time until next match.
 
@@ -213,19 +224,8 @@ def how_long_until() -> str:
         Formatted string with countdown to match.
     """
     match_data = read_match_data()
-
-    # Create timezone-aware match datetime in Lisbon time
-    match_dt_lisbon = pendulum.datetime(
-        year=match_data["year"],
-        month=match_data["month"],
-        day=match_data["day"],
-        hour=match_data["hour"],
-        minute=match_data["minute"],
-        tz=TZ,
-    )
-
-    # Get current time in Lisbon timezone
-    now_lisbon = pendulum.now(TZ)
+    match_dt_lisbon = _match_data_to_pendulum(match_data)
+    now_lisbon = pendulum.now(TIMEZONE)
 
     # Calculate time difference
     time_to_match = match_dt_lisbon - now_lisbon
@@ -240,9 +240,7 @@ def how_long_until() -> str:
     seconds = remaining_seconds % 60
 
     # Check if match is actually today (same date)
-    is_today = (
-        now_lisbon.date() == match_dt_lisbon.date()
-    )
+    is_today = now_lisbon.date() == match_dt_lisbon.date()
 
     if is_today:
         sentence = (
@@ -267,17 +265,71 @@ def when_is_it() -> str:
         Formatted string with match date, time and details.
     """
     match_data = read_match_data()
-    tz_diff = (pendulum.today(TZ) - pendulum.today()).total_hours()
-    match_date = datetime_match_date() + timedelta(hours=int(tz_diff))
-    h_m_timestamp = int(mktime(match_date.timetuple()))
+    match_dt = _match_data_to_pendulum(match_data)
+
+    # Convert to Unix timestamp for Discord's <t:timestamp:t> formatting
+    h_m_timestamp = int(match_dt.timestamp())
+
     sentence = (
-        f"{PULHAS} {WEEKDAY[match_date.isoweekday()]}, "
-        f"dia {match_date.day} às <t:{h_m_timestamp}:t>, "
+        f"{PULHAS} {WEEKDAY[match_dt.isoweekday()]}, "
+        f"dia {match_dt.day} às <t:{h_m_timestamp}:t>, "
         f"{SLB} vs {match_data['adversary']}, "
         f"no {match_data['location']} "
         f"para o/a {match_data['competition']}"
     )
     return sentence
+
+
+def get_match_data_with_refresh() -> tuple[dict | None, bool]:
+    """Get match data, automatically refreshing if it's in the past.
+
+    Returns:
+        Tuple of (match_data dict or None, was_refreshed bool).
+    """
+    try:
+        match_data = read_match_data()
+    except FileNotFoundError:
+        return None, False
+
+    # Check if match is in the past
+    match_dt = _match_data_to_pendulum(match_data)
+    now_lisbon = pendulum.now(TIMEZONE)
+
+    if match_dt < now_lisbon:
+        # Match is in the past, refresh data
+        logger.info("Stored match is in the past, refreshing from ESPN")
+        success = update_match_date()
+
+        if not success:
+            logger.warning("No upcoming matches found")
+            return None, False
+
+        # Re-read the updated data
+        match_data = read_match_data()
+        match_dt = _match_data_to_pendulum(match_data)
+
+        # Double-check the new data isn't also in the past
+        if match_dt < now_lisbon:
+            logger.warning("Refreshed match is still in the past")
+            return None, False
+
+        return match_data, True
+
+    return match_data, False
+
+
+def match_data_to_pendulum(match_data: dict) -> pendulum.DateTime:
+    """Convert match data dict to timezone-aware pendulum datetime.
+
+    Public wrapper for _match_data_to_pendulum for external use.
+
+    Args:
+        match_data: Dictionary with year, month, day, hour, minute keys.
+
+    Returns:
+        Timezone-aware pendulum datetime in Lisbon timezone.
+    """
+    return _match_data_to_pendulum(match_data)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from io import BytesIO
 from pathlib import Path
 from sys import platform
@@ -81,13 +82,17 @@ def _filter_pictures(
         newspapers: Tuple of newspaper names to filter for (lowercase slugs).
 
     Returns:
-        List of cover image URLs.
+        List of high-resolution cover image URLs.
     """
-    covers = [
-        cover["src"]  # Changed from data-original-src to src
-        for cover in pictures
-        if cover.get("alt", "").lower() in newspapers  # Check alt attribute
-    ]
+    covers = []
+    for cover in pictures:
+        if cover.get("alt", "").lower() in newspapers:
+            url = cover["src"]
+            # SAPO thumbs service uses W= and H= for dimensions
+            # Replace with high-res parameters (1000x1500)
+            url = re.sub(r"W=\d+", "W=1000", url)
+            url = re.sub(r"H=\d+", "H=1500", url)
+            covers.append(url)
     return covers
 
 

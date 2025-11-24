@@ -12,6 +12,27 @@ import configuration
 import covers
 import next_match
 import totw
+from immutables import (
+    ERROR_COVERS_FETCH,
+    ERROR_COVERS_FILE_NOT_FOUND,
+    ERROR_COVERS_FILE_READ,
+    ERROR_COVERS_SEND,
+    ERROR_EVENT_CREATE,
+    ERROR_GUILD_ONLY,
+    ERROR_MATCH_COUNTDOWN,
+    ERROR_MATCH_DATA_NOT_FOUND,
+    ERROR_MATCH_DATA_UPDATE,
+    ERROR_MATCH_DATE,
+    ERROR_NO_UPCOMING_MATCH,
+    ERROR_TOTW_FETCH,
+    EVENT_ALREADY_EXISTS,
+    EVENT_CREATED,
+    RATE_LIMIT_TOTW,
+    SUCCESS_EVENT_DESCRIPTION,
+    SUCCESS_MATCH_DATA_REFRESHED,
+    SUCCESS_MATCH_DATA_UPDATED,
+    TIMEZONE,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +58,16 @@ last_totw_run = dict()  # Track last team of the week command execution
 # Configuration variables (loaded at startup)
 channel_id: int
 hour: str
+
+
+def _today_key() -> dict:
+    """Get today's date as a dict key for rate limiting.
+
+    Returns:
+        Dict with month: day mapping for today.
+    """
+    now = datetime.now()
+    return {now.month: now.day}
 
 
 def load_configuration() -> tuple[str, int, str]:
@@ -104,9 +135,7 @@ async def send_collage(
     try:
         path = Path(file_path)
         if not path.exists():
-            await interaction.followup.send(
-                "Erro: Ficheiro de capas não encontrado."
-            )
+            await interaction.followup.send(ERROR_COVERS_FILE_NOT_FOUND)
             return
 
         with open(path, "rb") as fp:
@@ -114,10 +143,10 @@ async def send_collage(
         await interaction.followup.send(file=discord_file)
     except OSError as e:
         logger.error(f"File operation error: {e}")
-        await interaction.followup.send("Erro ao ler o ficheiro de capas.")
+        await interaction.followup.send(ERROR_COVERS_FILE_READ)
     except discord.DiscordException as e:
         logger.error(f"Discord error sending file: {e}")
-        await interaction.followup.send("Erro ao enviar capas.")
+        await interaction.followup.send(ERROR_COVERS_SEND)
 
 
 @bot.tree.command(
@@ -134,18 +163,16 @@ async def capas(interaction: discord.Interaction) -> None:
     logger.info("Defer succeeded, fetching covers")
     try:
         file_path = await covers.sports_covers()
-        last_run[datetime.now().month] = datetime.now().day
+        last_run.update(_today_key())
         logger.info(f"Covers fetched, sending collage from {file_path}")
         await send_collage(interaction, file_path)
         logger.info("Capas command completed successfully")
     except Exception as e:
         logger.error(f"Error in capas command: {e}")
-        await interaction.followup.send("Erro ao obter capas dos jornais.")
+        await interaction.followup.send(ERROR_COVERS_FETCH)
 
 
-@bot.tree.command(
-    name="quanto_falta", description="Tempo até ao próximo jogo"
-)
+@bot.tree.command(name="quanto_falta", description="Tempo até ao próximo jogo")
 async def quanto_falta(interaction: discord.Interaction) -> None:
     """Show time remaining until next match."""
     if not await safe_defer(interaction):
@@ -154,23 +181,16 @@ async def quanto_falta(interaction: discord.Interaction) -> None:
     try:
         # Run in executor since it's a synchronous function
         loop = asyncio.get_event_loop()
-        message = await loop.run_in_executor(
-            None, next_match.how_long_until
-        )
+        message = await loop.run_in_executor(None, next_match.how_long_until)
         await interaction.followup.send(message)
     except FileNotFoundError:
-        await interaction.followup.send(
-            "Dados do jogo não encontrados. "
-            "Usa `/actualizar_data` primeiro."
-        )
+        await interaction.followup.send(ERROR_MATCH_DATA_NOT_FOUND)
     except Exception as e:
         logger.error(f"Error in quanto_falta command: {e}")
-        await interaction.followup.send("Erro ao calcular tempo até ao jogo.")
+        await interaction.followup.send(ERROR_MATCH_COUNTDOWN)
 
 
-@bot.tree.command(
-    name="quando_joga", description="Quando joga o Benfica"
-)
+@bot.tree.command(name="quando_joga", description="Quando joga o Benfica")
 async def quando_joga(interaction: discord.Interaction) -> None:
     """Show when next match is scheduled."""
     if not await safe_defer(interaction):
@@ -182,13 +202,10 @@ async def quando_joga(interaction: discord.Interaction) -> None:
         message = await loop.run_in_executor(None, next_match.when_is_it)
         await interaction.followup.send(message)
     except FileNotFoundError:
-        await interaction.followup.send(
-            "Dados do jogo não encontrados. "
-            "Usa `/actualizar_data` primeiro."
-        )
+        await interaction.followup.send(ERROR_MATCH_DATA_NOT_FOUND)
     except Exception as e:
         logger.error(f"Error in quando_joga command: {e}")
-        await interaction.followup.send("Erro ao obter data do jogo.")
+        await interaction.followup.send(ERROR_MATCH_DATE)
 
 
 @bot.tree.command(
@@ -206,17 +223,12 @@ async def actualizar_data(interaction: discord.Interaction) -> None:
             None, next_match.update_match_date
         )
         if success:
-            await interaction.followup.send(
-                "✅ Data do jogo actualizada. "
-                "Testa com `/quando_joga` ou `/quanto_falta`"
-            )
+            await interaction.followup.send(SUCCESS_MATCH_DATA_UPDATED)
         else:
-            await interaction.followup.send(
-                "❌ Erro ao actualizar data do jogo."
-            )
+            await interaction.followup.send(ERROR_MATCH_DATA_UPDATE)
     except Exception as e:
         logger.error(f"Error updating match date: {e}")
-        await interaction.followup.send("❌ Erro ao actualizar data do jogo.")
+        await interaction.followup.send(ERROR_MATCH_DATA_UPDATE)
 
 
 @bot.tree.command(
@@ -228,17 +240,12 @@ async def equipa_semana(interaction: discord.Interaction) -> None:
         return
 
     # Check if already run today (rate limiting)
-    today = {datetime.now().month: datetime.now().day}
-    if last_totw_run == today:
+    if last_totw_run == _today_key():
         logger.info(
             f"Team of the week already fetched today by "
             f"{interaction.user}, denying request"
         )
-        await interaction.followup.send(
-            "⏰ Este comando já foi executado hoje. "
-            "Por favor tenta novamente amanhã.\n"
-            "(Este comando é pesado e só pode ser usado uma vez por dia)"
-        )
+        await interaction.followup.send(RATE_LIMIT_TOTW)
         return
 
     try:
@@ -248,11 +255,13 @@ async def equipa_semana(interaction: discord.Interaction) -> None:
         await interaction.followup.send(file=discord_file)
 
         # Mark as run today
-        last_totw_run.update(today)
-        logger.info("Team of the week posted successfully, marked as run today")
+        last_totw_run.update(_today_key())
+        logger.info(
+            "Team of the week posted successfully, marked as run today"
+        )
     except Exception as e:
         logger.error(f"Error fetching team of the week: {e}")
-        await interaction.followup.send("Erro ao obter equipa da semana.")
+        await interaction.followup.send(ERROR_TOTW_FETCH)
 
 
 @bot.tree.command(
@@ -267,41 +276,36 @@ async def criar_evento(interaction: discord.Interaction) -> None:
     try:
         # Check if we have a guild (server) context
         if interaction.guild is None:
+            await interaction.followup.send(ERROR_GUILD_ONLY)
+            return
+
+        # Get match data, with auto-refresh if needed
+        loop = asyncio.get_event_loop()
+        match_data, was_refreshed = await loop.run_in_executor(
+            None, next_match.get_match_data_with_refresh
+        )
+
+        if match_data is None:
+            # No match data available or all matches are in the past
             await interaction.followup.send(
-                "Este comando só funciona em servidores."
+                ERROR_MATCH_DATA_NOT_FOUND
+                if not was_refreshed
+                else ERROR_NO_UPCOMING_MATCH
             )
             return
 
-        # Read match data
-        try:
-            match_data = next_match.read_match_data()
-        except FileNotFoundError:
-            await interaction.followup.send(
-                "Dados do jogo não encontrados. "
-                "Usa `/actualizar_data` primeiro."
-            )
-            return
+        # Inform user if data was auto-refreshed
+        if was_refreshed:
+            await interaction.followup.send(SUCCESS_MATCH_DATA_REFRESHED)
 
         # Parse match datetime with Lisbon timezone
-        # Match data is already in Lisbon time, so we create a
-        # timezone-aware datetime directly
-        import pendulum
-
-        match_dt_aware = pendulum.datetime(
-            year=match_data["year"],
-            month=match_data["month"],
-            day=match_data["day"],
-            hour=match_data["hour"],
-            minute=match_data["minute"],
-            tz="Europe/Lisbon",
-        )
+        match_dt_aware = next_match.match_data_to_pendulum(match_data)
 
         # Build event details
         event_name = f"⚽ Benfica vs {match_data['adversary']}"
-        event_description = (
-            f"🏟️ **Local:** {match_data['location']}\n"
-            f"🏆 **Competição:** {match_data['competition']}\n\n"
-            "Força Benfica! 🦅"
+        event_description = SUCCESS_EVENT_DESCRIPTION.format(
+            location=match_data["location"],
+            competition=match_data["competition"],
         )
 
         # Check if event already exists
@@ -311,9 +315,9 @@ async def criar_evento(interaction: discord.Interaction) -> None:
                 # Discord timestamp: <t:unix:F> = full date and time
                 timestamp = int(existing_event.start_time.timestamp())
                 await interaction.followup.send(
-                    f"❌ Já existe um evento com este nome!\n"
-                    f"📅 {event_name}\n"
-                    f"🕐 <t:{timestamp}:F>"
+                    EVENT_ALREADY_EXISTS.format(
+                        name=event_name, timestamp=timestamp
+                    )
                 )
                 logger.info(
                     f"Event creation skipped - already exists: {event_name}"
@@ -337,23 +341,20 @@ async def criar_evento(interaction: discord.Interaction) -> None:
         # Discord timestamp: <t:unix:F> = full date and time
         timestamp = int(match_dt_aware.timestamp())
         await interaction.followup.send(
-            f"✅ Evento criado com sucesso!\n"
-            f"📅 {event_name}\n"
-            f"🕐 <t:{timestamp}:F>"
+            EVENT_CREATED.format(name=event_name, timestamp=timestamp)
         )
         logger.info(f"Created event: {event.name} (ID: {event.id})")
 
     except Exception as e:
         logger.error(f"Error creating event: {e}", exc_info=True)
-        await interaction.followup.send(f"Erro ao criar evento: {str(e)}")
+        await interaction.followup.send(f"{ERROR_EVENT_CREATE}: {str(e)}")
 
 
 async def daily_covers() -> None:
     """Scheduled task to post newspaper covers daily."""
     try:
         # Check if already run today
-        today = {datetime.now().month: datetime.now().day}
-        if last_run == today:
+        if last_run == _today_key():
             logger.info("Daily covers already posted today, skipping")
             return
 
@@ -371,7 +372,7 @@ async def daily_covers() -> None:
         with open(path, "rb") as fp:
             discord_file = discord.File(fp, "collage.jpg")
         await channel.send(file=discord_file)
-        last_run.update(today)
+        last_run.update(_today_key())
         logger.info("Daily covers posted successfully")
 
     except Exception as e:
@@ -391,11 +392,11 @@ async def on_ready() -> None:
     except Exception as e:
         logger.error(f"Failed to sync commands: {e}")
 
-    # Start scheduler
+    # Start scheduler with Lisbon timezone
     scheduler = AsyncIOScheduler()
-    scheduler.add_job(daily_covers, CronTrigger(hour=hour))
+    scheduler.add_job(daily_covers, CronTrigger(hour=hour, timezone=TIMEZONE))
     scheduler.start()
-    logger.info(f"Scheduler started, daily covers at {hour}:00")
+    logger.info(f"Scheduler started, daily covers at {hour}:00 Lisbon time")
 
     # Send startup message to configured channel
     try:
@@ -441,9 +442,7 @@ async def on_app_command_error(
             error_msg = "Erro: Não tens permissões para usar este comando."
 
         if not interaction.response.is_done():
-            await interaction.response.send_message(
-                error_msg, ephemeral=True
-            )
+            await interaction.response.send_message(error_msg, ephemeral=True)
         else:
             await interaction.followup.send(error_msg, ephemeral=True)
     except Exception as e:

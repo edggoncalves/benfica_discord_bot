@@ -105,7 +105,8 @@ def gen_browser() -> selenium.webdriver.firefox.webdriver.WebDriver:
     # Prevent Firefox from using too much memory
     opts.set_preference("browser.sessionhistory.max_entries", 1)
     opts.set_preference("browser.sessionhistory.max_total_viewers", 0)
-    opts.set_preference("javascript.options.mem.max", 256 * 1024 * 1024)  # 256MB limit
+    # 256MB limit
+    opts.set_preference("javascript.options.mem.max", 256 * 1024 * 1024)
 
     # Disable single-use features that can crash
     opts.set_preference("gfx.webrender.all", False)
