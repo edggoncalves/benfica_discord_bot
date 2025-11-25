@@ -8,12 +8,13 @@ import pendulum
 import requests
 from fake_useragent import UserAgent
 
-from immutables import PULHAS, SLB, TIMEZONE, WEEKDAY
+from config.constants import PULHAS, SLB, TIMEZONE, WEEKDAY
+from core.benfica_calendar import get_next_match_from_api
 
 logger = logging.getLogger(__name__)
 
-# File paths
-MATCH_DATA_FILE = Path(__file__).parent / "match_data.json"
+# File paths (match_data.json stays in project root)
+MATCH_DATA_FILE = Path(__file__).parent.parent / "match_data.json"
 
 # ESPN configuration
 ESPN_URL = "https://www.espn.com/soccer/team/fixtures/_/id/1929"
@@ -167,17 +168,69 @@ def read_match_data() -> dict:
         return json.load(f)
 
 
+def _normalize_match_data(match_data: dict, source: str) -> dict:
+    """Normalize match data from different sources to standard format.
+
+    Args:
+        match_data: Raw match data from API or scraper.
+        source: Source of data ("benfica_api" or "espn").
+
+    Returns:
+        Normalized dict with datetime object and consistent keys.
+    """
+    if source == "benfica_api":
+        # Benfica API returns: date="DD-MM-YYYY", time="HH:mm", home="Casa"/"Fora"
+        date_parts = match_data["date"].split("-")
+        time_parts = match_data["time"].split(":")
+        match_dt = pendulum.datetime(
+            year=int(date_parts[2]),
+            month=int(date_parts[1]),
+            day=int(date_parts[0]),
+            hour=int(time_parts[0]),
+            minute=int(time_parts[1]),
+            tz=TIMEZONE,
+        )
+        return {
+            "date": match_dt,
+            "adversary": match_data["adversary"],
+            "location": match_data["location"],
+            "competition": match_data["competition"],
+            "is_home": match_data["home"] == "Casa",
+        }
+    else:  # espn
+        # ESPN already returns datetime object and is_home boolean
+        return match_data
+
+
 def update_match_date() -> bool:
-    """Update match date by scraping website.
+    """Update match date using hybrid approach (Benfica API + ESPN fallback).
+
+    Tries to fetch match data from Benfica's official API first.
+    Falls back to ESPN scraping if API fails.
 
     Returns:
         True if update successful, False otherwise.
     """
-    match_data = get_next_match()
+    # Try Benfica API first (more reliable, official source)
+    logger.info("Attempting to fetch match data from Benfica API")
+    match_data = get_next_match_from_api()
+
+    if match_data is not None:
+        # Normalize Benfica API data format
+        match_data = _normalize_match_data(match_data, "benfica_api")
+    else:
+        # Fallback to ESPN if API fails
+        logger.warning("Benfica API failed, falling back to ESPN scraping")
+        match_data = get_next_match()
+        if match_data is not None:
+            match_data = _normalize_match_data(match_data, "espn")
+
     if match_data is None:
-        logger.error("Failed to get match data")
+        logger.error("Failed to get match data from both sources")
         return False
+
     write_match_data(match_data)
+    logger.info("Match data updated successfully")
     return True
 
 

@@ -96,12 +96,23 @@ SCHEDULE_HOUR=8
 - Proper browser cleanup with try/finally
 - Called via thread executor in bot to avoid blocking async event loop
 
-**[classes/cookies.py](classes/cookies.py)** - Calendar API client (experimental)
-- Alternative approach to scrape Benfica calendar via API instead of web scraping
+**[core/benfica_calendar.py](core/benfica_calendar.py)** - Benfica Calendar API client
+
+- Primary source for match data from Benfica's official calendar API
+- **Fully automated dynamic extraction**: No manual updates needed!
+  - Extracts current season from checked season checkbox on calendar page
+  - Extracts rank ID (team level) from checked radio button on calendar page
+  - Extracts tournament IDs from checked checkboxes dynamically
+  - Falls back to hardcoded constants if extraction fails
 - Manages session cookies and request verification tokens
-- Not currently integrated with main bot
-- Updated CURRENT_SEASON constant (should be updated annually)
-- Clean code with logging instead of print statements
+- Uses `curl_cffi` with Chrome impersonation to bypass bot protection
+- Parses HTML response to extract structured match data
+- Filters for upcoming matches only
+- Functions: `get_next_match_from_api()` returns next match or None
+- CURRENT_SEASON constant is now a fallback only (automatically extracted from page)
+- Can be tested standalone: `uv run python -m core.benfica_calendar`
+- Supports `--dry-run` flag to show detailed extraction info with Discord message previews
+- Dry-run shows: API payload, raw response, parsed events, and previews of /quando_joga, /quanto_falta, and /criar_evento messages
 
 ### Logging
 

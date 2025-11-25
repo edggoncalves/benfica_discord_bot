@@ -3,8 +3,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Path to .env file
-env_path = Path(__file__).parent / ".env"
+# Path to .env file (in project root, not config dir)
+env_path = Path(__file__).parent.parent / ".env"
 _env_loaded = False
 
 

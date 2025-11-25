@@ -12,7 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions
 from selenium.webdriver.support.ui import WebDriverWait
 
-from gen_browser import gen_browser
+from core.browser import gen_browser
 
 logger = logging.getLogger(__name__)
 

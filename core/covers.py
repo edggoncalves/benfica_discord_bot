@@ -3,8 +3,11 @@ import re
 from io import BytesIO
 
 import aiohttp
+import discord
 from bs4 import BeautifulSoup, element
 from PIL import Image
+
+from config.constants import NEWSPAPER_NAMES
 
 logger = logging.getLogger(__name__)
 
@@ -116,6 +119,28 @@ async def _download_image(url: str) -> Image.Image | None:
         return None
 
 
+async def _download_covers_data(cover_urls: list[str]) -> list[bytes]:
+    """Download newspaper cover images from URLs.
+
+    Args:
+        cover_urls: List of cover image URLs.
+
+    Returns:
+        List of image data as bytes.
+    """
+    images_data = []
+    async with aiohttp.ClientSession() as session:
+        for url in cover_urls:
+            try:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        data = await response.read()
+                        images_data.append(data)
+            except Exception as e:
+                logger.error(f"Error downloading {url}: {e}")
+    return images_data
+
+
 async def sports_covers() -> list[str]:
     """Get sports newspaper cover URLs.
 
@@ -137,3 +162,53 @@ async def sports_covers() -> list[str]:
 
     logger.info(f"Found {len(covers)} newspaper covers")
     return covers
+
+
+async def download_covers(cover_urls: list[str]) -> list[bytes]:
+    """Download newspaper cover images and return as bytes.
+
+    Args:
+        cover_urls: List of cover image URLs.
+
+    Returns:
+        List of image data as bytes.
+
+    Raises:
+        Exception: If no covers could be downloaded.
+    """
+    images_data = await _download_covers_data(cover_urls)
+    if not images_data:
+        raise Exception("Failed to download any covers")
+    return images_data
+
+
+async def get_covers_as_discord_files() -> list[discord.File]:
+    """Get newspaper covers as Discord File objects ready to send.
+
+    This is the main entry point for getting covers to post to Discord.
+    It handles fetching URLs, downloading images, and creating Discord Files.
+
+    Returns:
+        List of Discord File objects.
+
+    Raises:
+        Exception: If cover retrieval or download fails.
+    """
+    # Get cover URLs
+    cover_urls = await sports_covers()
+
+    # Download the images
+    images_data = await download_covers(cover_urls)
+
+    # Create Discord File objects
+    discord_files = []
+    for i, image_data in enumerate(images_data):
+        newspaper = (
+            NEWSPAPER_NAMES[i] if i < len(NEWSPAPER_NAMES) else f"jornal_{i+1}"
+        )
+        discord_file = discord.File(
+            BytesIO(image_data), filename=f"{newspaper}.jpg"
+        )
+        discord_files.append(discord_file)
+
+    return discord_files

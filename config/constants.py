@@ -9,6 +9,9 @@ CALENDAR_API_URL = (
 # Timezone
 TIMEZONE = "Europe/Lisbon"
 
+# Newspaper names (for filename generation)
+NEWSPAPER_NAMES = ["a_bola", "o_jogo", "record"]
+
 # Discord custom emojis
 PULHAS = "<:pulhas:867780231116095579>"
 SLB = "<:slb:240116451782950914>"
