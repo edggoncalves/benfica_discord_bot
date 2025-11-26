@@ -133,6 +133,7 @@ dmypy.json
 /poetry.lock
 /.idea
 /match_data.json
+/last_run.json
 
 # Test files
 test_*.py
