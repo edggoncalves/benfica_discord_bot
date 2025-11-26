@@ -129,12 +129,12 @@ dmypy.json
 .pyre/
 
 # Project specific
-/discord.conf
 /poetry.lock
 /.idea
 /match_data.json
 /last_run.json
+/.ruff_cache/
+/.claude
 
 # Test files
-test_*.py
 debug_*.py
