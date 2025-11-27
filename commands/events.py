@@ -61,6 +61,10 @@ async def criar_evento_command(interaction: discord.Interaction) -> None:
             competition=match_data["competition"],
         )
 
+        # Add TV channel to description if available
+        if "tv_channel" in match_data and match_data["tv_channel"]:
+            event_description += f"\n📺 {match_data['tv_channel']}"
+
         # Check if event already exists
         existing_events = interaction.guild.scheduled_events
         for existing_event in existing_events:

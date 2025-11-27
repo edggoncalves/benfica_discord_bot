@@ -298,12 +298,22 @@ class Calendar:
             # Location
             location = location_div.text.strip() if location_div else "Unknown"
 
+            # TV Channel (from calendar-live-channels div)
+            tv_channel = None
+            tv_channels_div = item.find("div", class_="calendar-live-channels")
+            if tv_channels_div:
+                # Channel name is in a hidden <p> tag
+                channel_p = tv_channels_div.find("p", attrs={"hidden": ""})
+                if channel_p:
+                    tv_channel = channel_p.text.strip()
+
             return {
                 "MatchDate": match_dt_aware.to_iso8601_string(),
                 "AdversaryName": adversary,
                 "StadiumName": location,
                 "TournamentName": competition,
                 "IsHome": is_home if is_home is not None else True,
+                "TvChannel": tv_channel,
             }
 
         except Exception as e:
@@ -327,6 +337,7 @@ def _parse_match_from_event(event: dict[str, Any]) -> dict[str, Any] | None:
         location = event.get("StadiumName", "Unknown")
         competition = event.get("TournamentName", "Unknown")
         is_home = event.get("IsHome", True)
+        tv_channel = event.get("TvChannel")
 
         if not match_date_str:
             return None
@@ -351,6 +362,7 @@ def _parse_match_from_event(event: dict[str, Any]) -> dict[str, Any] | None:
             "location": location,
             "competition": competition,
             "home": "Casa" if is_home else "Fora",
+            "tv_channel": tv_channel,
         }
     except Exception as e:
         logger.error(f"Error parsing match event: {e}")
@@ -398,6 +410,9 @@ def _generate_discord_previews(match_data: dict[str, Any]) -> str:
         f"no {match_data['location']} "
         f"para o/a {match_data['competition']}"
     )
+    # Add TV channel if available
+    if match_data.get("tv_channel"):
+        quando_joga_msg += f" 📺 {match_data['tv_channel']}"
     lines.append(quando_joga_msg)
 
     # 2. /quanto_falta message (sample)
@@ -436,10 +451,13 @@ def _generate_discord_previews(match_data: dict[str, Any]) -> str:
     lines.append(f"Event Name: ⚽ Benfica vs {match_data['adversary']}")
     lines.append(f"Event Time: <t:{timestamp}:F>")
     lines.append(f"Location: {match_data['location']}")
-    lines.append(
-        f"Description: Benfica vs {match_data['adversary']} no "
+    event_desc = (
+        f"Benfica vs {match_data['adversary']} no "
         f"{match_data['location']} para o/a {match_data['competition']}"
     )
+    if match_data.get("tv_channel"):
+        event_desc += f"\n📺 {match_data['tv_channel']}"
+    lines.append(f"Description: {event_desc}")
     end_time = match_dt.add(hours=2)
     lines.append(
         f"Duration: {match_dt.format('HH:mm')} - "
@@ -552,6 +570,8 @@ def _run_dry_run() -> None:
                     print(f"  Local: {match_data['location']}")
                     print(f"  Competição: {match_data['competition']}")
                     print(f"  Casa/Fora: {match_data['home']}")
+                    if match_data.get("tv_channel"):
+                        print(f"  📺 Canal TV: {match_data['tv_channel']}")
 
                     # Show Discord message previews
                     print()

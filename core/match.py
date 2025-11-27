@@ -102,6 +102,15 @@ def get_next_match() -> dict | None:
         venue = event.get("venue", {})
         location = venue.get("fullName", "Unknown Venue")
 
+        # Try to extract TV channel from broadcasts
+        tv_channel = None
+        broadcasts = event.get("broadcasts")
+        if broadcasts and isinstance(broadcasts, list) and len(broadcasts) > 0:
+            # Get first broadcast entry
+            first_broadcast = broadcasts[0]
+            if isinstance(first_broadcast, dict):
+                tv_channel = first_broadcast.get("name")
+
         match_data = {
             "date": match_date,
             "adversary": adversary,
@@ -109,6 +118,10 @@ def get_next_match() -> dict | None:
             "competition": competition,
             "is_home": is_home,
         }
+
+        # Add TV channel if available
+        if tv_channel:
+            match_data["tv_channel"] = tv_channel
 
         logger.info(
             f"Match data scraped: {adversary} on {match_date} at {location}"
@@ -134,7 +147,7 @@ def write_match_data(info: dict) -> None:
 
     Args:
         info: Dictionary containing match data with date, adversary,
-              location, and competition keys.
+              location, competition, and optional tv_channel keys.
     """
     data = {
         "year": info["date"].year,
@@ -146,6 +159,10 @@ def write_match_data(info: dict) -> None:
         "location": info["location"],
         "competition": info["competition"],
     }
+    # Add TV channel if available
+    if "tv_channel" in info and info["tv_channel"]:
+        data["tv_channel"] = info["tv_channel"]
+
     with open(MATCH_DATA_FILE, "w") as f:
         json.dump(data, f, indent=2)
     logger.info("Match data saved")
@@ -179,7 +196,8 @@ def _normalize_match_data(match_data: dict, source: str) -> dict:
         Normalized dict with datetime object and consistent keys.
     """
     if source == "benfica_api":
-        # Benfica API returns: date="DD-MM-YYYY", time="HH:mm", home="Casa"/"Fora"
+        # Benfica API returns: date="DD-MM-YYYY", time="HH:mm",
+        # home="Casa"/"Fora"
         date_parts = match_data["date"].split("-")
         time_parts = match_data["time"].split(":")
         match_dt = pendulum.datetime(
@@ -190,13 +208,17 @@ def _normalize_match_data(match_data: dict, source: str) -> dict:
             minute=int(time_parts[1]),
             tz=TIMEZONE,
         )
-        return {
+        normalized = {
             "date": match_dt,
             "adversary": match_data["adversary"],
             "location": match_data["location"],
             "competition": match_data["competition"],
             "is_home": match_data["home"] == "Casa",
         }
+        # Include TV channel if available
+        if "tv_channel" in match_data and match_data["tv_channel"]:
+            normalized["tv_channel"] = match_data["tv_channel"]
+        return normalized
     else:  # espn
         # ESPN already returns datetime object and is_home boolean
         return match_data
@@ -330,6 +352,11 @@ def when_is_it() -> str:
         f"no {match_data['location']} "
         f"para o/a {match_data['competition']}"
     )
+
+    # Add TV channel if available
+    if "tv_channel" in match_data and match_data["tv_channel"]:
+        sentence += f" 📺 {match_data['tv_channel']}"
+
     return sentence
 
 
