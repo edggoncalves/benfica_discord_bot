@@ -295,10 +295,20 @@ def _match_data_to_pendulum(match_data: dict) -> pendulum.DateTime:
 def how_long_until() -> str:
     """Generate message showing time until next match.
 
+    Automatically refreshes match data if stored match is in the past.
+
     Returns:
         Formatted string with countdown to match.
     """
-    match_data = read_match_data()
+    # Use auto-refresh to ensure we have upcoming match
+    match_data, was_refreshed = get_match_data_with_refresh()
+
+    if match_data is None:
+        return (
+            f"{PULHAS} Não há jogos agendados no momento. "
+            f"Usa /actualizar_data para tentar obter novos dados."
+        )
+
     match_dt_lisbon = _match_data_to_pendulum(match_data)
     now_lisbon = pendulum.now(TIMEZONE)
 
@@ -336,10 +346,20 @@ def how_long_until() -> str:
 def when_is_it() -> str:
     """Generate message showing when next match is scheduled.
 
+    Automatically refreshes match data if stored match is in the past.
+
     Returns:
         Formatted string with match date, time and details.
     """
-    match_data = read_match_data()
+    # Use auto-refresh to ensure we have upcoming match
+    match_data, was_refreshed = get_match_data_with_refresh()
+
+    if match_data is None:
+        return (
+            f"{PULHAS} Não há jogos agendados no momento. "
+            f"Usa /actualizar_data para tentar obter novos dados."
+        )
+
     match_dt = _match_data_to_pendulum(match_data)
 
     # Convert to Unix timestamp for Discord's <t:timestamp:t> formatting
