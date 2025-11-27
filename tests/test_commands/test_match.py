@@ -46,7 +46,9 @@ async def test_quando_joga_command_success():
     with patch("core.match.when_is_it", return_value="Benfica joga amanhã"):
         await quando_joga_command(mock_interaction)
 
-        mock_interaction.followup.send.assert_called_once_with("Benfica joga amanhã")
+        mock_interaction.followup.send.assert_called_once_with(
+            "Benfica joga amanhã"
+        )
 
 
 @pytest.mark.asyncio

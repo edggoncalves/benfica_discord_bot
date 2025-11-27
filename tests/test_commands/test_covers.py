@@ -17,7 +17,9 @@ async def test_capas_command_success():
 
     mock_files = [MagicMock(spec=discord.File) for _ in range(3)]
 
-    with patch("commands.covers.get_covers_as_discord_files", return_value=mock_files):
+    with patch(
+        "commands.covers.get_covers_as_discord_files", return_value=mock_files
+    ):
         await capas_command(mock_interaction)
 
         mock_interaction.followup.send.assert_called_once()
@@ -33,7 +35,10 @@ async def test_capas_command_error_handling():
     mock_interaction.followup = AsyncMock()
     mock_interaction.user = MagicMock()
 
-    with patch("commands.covers.get_covers_as_discord_files", side_effect=Exception("Test error")):
+    with patch(
+        "commands.covers.get_covers_as_discord_files",
+        side_effect=Exception("Test error"),
+    ):
         await capas_command(mock_interaction)
 
         mock_interaction.followup.send.assert_called_once()

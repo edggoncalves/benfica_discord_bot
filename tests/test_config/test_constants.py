@@ -1,7 +1,5 @@
 """Tests for config.constants module."""
 
-import pytest
-
 from config.constants import (
     CALENDAR_API_URL,
     CALENDAR_URL,

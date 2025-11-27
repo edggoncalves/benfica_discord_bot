@@ -1,8 +1,6 @@
 """Tests for tasks.daily module."""
 
 import json
-from datetime import datetime
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
@@ -160,7 +158,9 @@ async def test_daily_covers_already_run_today(temp_last_run_file):
     mock_bot.get_channel.return_value = mock_channel
 
     with patch("tasks.daily._get_today_date", return_value="2025-11-24"):
-        with patch("tasks.daily.get_covers_as_discord_files") as mock_get_covers:
+        with patch(
+            "tasks.daily.get_covers_as_discord_files"
+        ) as mock_get_covers:
             await daily.daily_covers(mock_bot, 123456789)
 
             # Verify covers were NOT fetched
@@ -195,7 +195,10 @@ async def test_daily_covers_multiple_channels_independent(temp_last_run_file):
 
             # Verify both channels are tracked
             data = json.loads(temp_last_run_file.read_text())
-            assert data == {"111111111": "2025-11-24", "222222222": "2025-11-24"}
+            assert data == {
+                "111111111": "2025-11-24",
+                "222222222": "2025-11-24",
+            }
 
 
 @pytest.mark.asyncio
@@ -205,7 +208,9 @@ async def test_daily_covers_channel_not_found(temp_last_run_file):
     mock_bot.get_channel.return_value = None
 
     with patch("tasks.daily._get_today_date", return_value="2025-11-24"):
-        with patch("tasks.daily.get_covers_as_discord_files") as mock_get_covers:
+        with patch(
+            "tasks.daily.get_covers_as_discord_files"
+        ) as mock_get_covers:
             await daily.daily_covers(mock_bot, 123456789)
 
             # Verify channel was attempted to be fetched

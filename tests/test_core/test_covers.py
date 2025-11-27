@@ -1,6 +1,6 @@
 """Tests for core.covers module."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import discord
 import pytest

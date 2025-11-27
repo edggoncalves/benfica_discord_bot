@@ -351,8 +351,8 @@ def test_get_events_success(mock_curl_response, mock_calendar_events_html):
 def test_get_events_http_error(mock_curl_response):
     """Test get_events handles HTTP errors."""
     mock_api_response = Mock()
-    mock_api_response.raise_for_status.side_effect = curl_requests.RequestsError(
-        "404 Not Found"
+    mock_api_response.raise_for_status.side_effect = (
+        curl_requests.RequestsError("404 Not Found")
     )
 
     with patch("core.benfica_calendar.requests.get") as mock_get:
@@ -373,7 +373,9 @@ def test_get_events_timeout(mock_curl_response):
         mock_get.return_value = mock_curl_response
 
         with patch("core.benfica_calendar.requests.post") as mock_post:
-            mock_post.side_effect = curl_requests.RequestsError("Request timed out")
+            mock_post.side_effect = curl_requests.RequestsError(
+                "Request timed out"
+            )
 
             calendar = Calendar()
 

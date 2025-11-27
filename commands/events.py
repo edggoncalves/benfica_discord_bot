@@ -12,7 +12,6 @@ from config.constants import (
     ERROR_NO_UPCOMING_MATCH,
     EVENT_ALREADY_EXISTS,
     EVENT_CREATED,
-    SUCCESS_EVENT_DESCRIPTION,
     SUCCESS_MATCH_DATA_REFRESHED,
 )
 from core import match
@@ -56,14 +55,17 @@ async def criar_evento_command(interaction: discord.Interaction) -> None:
 
         # Build event details
         event_name = f"⚽ Benfica vs {match_data['adversary']}"
-        event_description = SUCCESS_EVENT_DESCRIPTION.format(
-            location=match_data["location"],
-            competition=match_data["competition"],
-        )
 
-        # Add TV channel to description if available
+        # Build event description with TV channel
+        tv_channel_line = ""
         if "tv_channel" in match_data and match_data["tv_channel"]:
-            event_description += f"\n📺 {match_data['tv_channel']}"
+            tv_channel_line = f"📺 **Canal TV:** {match_data['tv_channel']}\n"
+
+        event_description = (
+            f"🏟️ **Local:** {match_data['location']}\n"
+            f"🏆 **Competição:** {match_data['competition']}\n"
+            f"{tv_channel_line}"
+        )
 
         # Check if event already exists
         existing_events = interaction.guild.scheduled_events
@@ -97,9 +99,16 @@ async def criar_evento_command(interaction: discord.Interaction) -> None:
 
         # Discord timestamp: <t:unix:F> = full date and time
         timestamp = int(match_dt_aware.timestamp())
-        await interaction.followup.send(
-            EVENT_CREATED.format(name=event_name, timestamp=timestamp)
+
+        # Build success message with TV channel info
+        success_msg = EVENT_CREATED.format(
+            name=event_name, timestamp=timestamp
         )
+        # Add TV channel to success message if available
+        if "tv_channel" in match_data and match_data["tv_channel"]:
+            success_msg += f"\n📺 {match_data['tv_channel']}"
+
+        await interaction.followup.send(success_msg)
         logger.info(f"Created event: {event.name} (ID: {event.id})")
 
     except Exception as e:
