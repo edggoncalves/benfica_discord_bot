@@ -172,8 +172,13 @@ async def on_ready() -> None:
 
     # Start scheduler with Lisbon timezone
     scheduler = AsyncIOScheduler()
+
+    # Create wrapper to ensure async function is properly scheduled
+    async def scheduled_daily_covers():
+        await daily_covers(bot, channel_id)
+
     scheduler.add_job(
-        lambda: daily_covers(bot, channel_id),
+        scheduled_daily_covers,
         CronTrigger(hour=hour, timezone=TIMEZONE),
     )
     scheduler.start()
