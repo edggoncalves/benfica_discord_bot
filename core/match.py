@@ -2,20 +2,17 @@ import json
 import logging
 import re
 from datetime import datetime
-from pathlib import Path
 
 import pendulum
 import requests
 from fake_useragent import UserAgent
 
 from config.constants import PULHAS, SLB, TIMEZONE, WEEKDAY
+from config.paths import MATCH_DATA_FILE
 from core.benfica_calendar import get_next_match_from_api
 from core.retry import retry_on_failure
 
 logger = logging.getLogger(__name__)
-
-# File paths (match_data.json stays in project root)
-MATCH_DATA_FILE = Path(__file__).parent.parent / "match_data.json"
 
 # ESPN configuration
 ESPN_URL = "https://www.espn.com/soccer/team/fixtures/_/id/1929"

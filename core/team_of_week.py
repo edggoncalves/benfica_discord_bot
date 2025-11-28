@@ -2,7 +2,9 @@ import json
 import logging
 import re
 import time
+from datetime import datetime, timedelta
 from io import BytesIO
+from typing import Any
 
 from bs4 import BeautifulSoup
 from curl_cffi import requests
@@ -40,25 +42,73 @@ FALLBACK_WIDGET_URL = (
 )
 PAGE_LOAD_TIMEOUT = 10
 
-# Cache for season ID and matchday to avoid repeated lookups
-_cached_season_id: int | None = None
-_cached_matchday: int | None = None
+# Cache for season ID and matchday with time-based expiration
+
+
+class CacheEntry:
+    """Cache entry with expiration time."""
+
+    def __init__(self, value: Any, expiry_hours: int = 24):
+        """Initialize cache entry.
+
+        Args:
+            value: Value to cache.
+            expiry_hours: Hours until cache expires (default: 24).
+        """
+        self.value = value
+        self.expiry = datetime.now() + timedelta(hours=expiry_hours)
+
+    def is_expired(self) -> bool:
+        """Check if cache entry is expired.
+
+        Returns:
+            True if expired, False otherwise.
+        """
+        return datetime.now() > self.expiry
+
+
+# Cache dictionary with time-based expiration
+_cache: dict[str, CacheEntry] = {}
+
+
+def _get_cached(key: str) -> Any | None:
+    """Get cached value if not expired.
+
+    Args:
+        key: Cache key.
+
+    Returns:
+        Cached value or None if not found or expired.
+    """
+    if key in _cache and not _cache[key].is_expired():
+        return _cache[key].value
+    return None
+
+
+def _set_cached(key: str, value: Any, expiry_hours: int = 24) -> None:
+    """Set cached value with expiry.
+
+    Args:
+        key: Cache key.
+        value: Value to cache.
+        expiry_hours: Hours until cache expires (default: 24).
+    """
+    _cache[key] = CacheEntry(value, expiry_hours)
 
 
 def _extract_current_matchday() -> int | None:
     """Extract current matchday from Transfermarkt.
 
-    Uses a cache to avoid repeated lookups during the same bot session.
+    Uses a cache (24h expiry) to avoid repeated lookups.
 
     Returns:
         Matchday number if found, None otherwise.
     """
-    global _cached_matchday
-
-    # Return cached value if available
-    if _cached_matchday is not None:
-        logger.info(f"Using cached matchday: {_cached_matchday}")
-        return _cached_matchday
+    # Return cached value if available and not expired
+    cached = _get_cached("matchday")
+    if cached is not None:
+        logger.info(f"Using cached matchday: {cached}")
+        return cached
 
     try:
         logger.info(f"Extracting current matchday from {TRANSFERMARKT_URL}")
@@ -92,8 +142,8 @@ def _extract_current_matchday() -> int | None:
             current_matchday = max(matchdays)
             logger.info(f"Found current matchday: {current_matchday}")
 
-            # Cache the result
-            _cached_matchday = current_matchday
+            # Cache the result for 24 hours
+            _set_cached("matchday", current_matchday, expiry_hours=24)
             return current_matchday
         else:
             logger.warning("No matchdays found on Transfermarkt page")
@@ -108,17 +158,16 @@ def _extract_current_season() -> int | None:
     """Extract current season ID from SofaScore tournament page.
 
     Uses requests instead of Selenium for better performance.
-    Uses a cache to avoid repeated lookups during the same bot session.
+    Uses a cache (24h expiry) to avoid repeated lookups.
 
     Returns:
         Season ID if found, None otherwise.
     """
-    global _cached_season_id
-
-    # Return cached value if available
-    if _cached_season_id is not None:
-        logger.info(f"Using cached season ID: {_cached_season_id}")
-        return _cached_season_id
+    # Return cached value if available and not expired
+    cached = _get_cached("season_id")
+    if cached is not None:
+        logger.info(f"Using cached season ID: {cached}")
+        return cached
 
     try:
         logger.info(f"Extracting current season from {TOURNAMENT_URL}")
@@ -165,8 +214,8 @@ def _extract_current_season() -> int | None:
                 f"Found current season: ID={season_id}, Year={season_year}"
             )
 
-            # Cache the result
-            _cached_season_id = season_id
+            # Cache the result for 24 hours
+            _set_cached("season_id", season_id, expiry_hours=24)
             return season_id
         else:
             logger.warning("No seasons found in page data")

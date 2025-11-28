@@ -3,16 +3,13 @@
 import json
 import logging
 from datetime import datetime
-from pathlib import Path
 
 import discord
 
+from config.paths import LAST_RUN_FILE
 from core.covers import get_covers_as_discord_files
 
 logger = logging.getLogger(__name__)
-
-# File to track last run date
-LAST_RUN_FILE = Path("last_run.json")
 
 
 def _get_today_date() -> str:

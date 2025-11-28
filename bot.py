@@ -22,6 +22,7 @@ from commands.match import (
 from commands.totw import equipa_semana_command
 from config import settings
 from config.constants import TIMEZONE
+from config.paths import LOG_FILE
 from config.validation import validate_config
 from tasks.daily import daily_covers
 
@@ -32,7 +33,7 @@ logging.basicConfig(
     handlers=[
         logging.StreamHandler(),  # Console output
         logging.handlers.RotatingFileHandler(
-            "bot.log",
+            str(LOG_FILE),
             maxBytes=10_000_000,  # 10MB
             backupCount=5,
         ),
