@@ -117,9 +117,18 @@ SCHEDULE_HOUR=8
 ### Logging
 
 All modules use Python's `logging` module:
-- Bot configures logging at startup with timestamp and level
+- **Structured JSON logging** for file output (easy to parse with jq/grep)
+- Human-readable console output for development
+- Log rotation (10MB files, 5 backups) to prevent disk space issues
 - Each module has its own logger: `logger = logging.getLogger(__name__)`
-- Logs help troubleshoot issues without cluttering output
+
+### Health Check
+
+The bot includes a health check mechanism for monitoring:
+- Updates `bot_health.txt` every minute with current timestamp
+- Monitor script at `scripts/check_bot_health.sh` checks file freshness
+- Exits with code 0 (healthy), 1 (unhealthy), or 2 (error)
+- Can be integrated with cron or systemd for automated monitoring
 
 ### Discord Commands
 

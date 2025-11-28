@@ -59,13 +59,6 @@ SUCCESS_EVENT_DESCRIPTION = (
     "Força Benfica! 🦅"
 )
 
-# Rate limiting messages
-RATE_LIMIT_TOTW = (
-    "⏰ Este comando já foi executado hoje. "
-    "Por favor tenta novamente amanhã.\n"
-    "(Este comando é pesado e só pode ser usado uma vez por dia)"
-)
-
 # Event messages
 EVENT_ALREADY_EXISTS = (
     "❌ Já existe um evento com este nome!\n"

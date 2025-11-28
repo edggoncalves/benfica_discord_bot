@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 # Tournament and fallback configuration
 TOURNAMENT_ID = 238  # Liga Portugal Betclic
 TOURNAMENT_URL = (
-    "https://www.sofascore.com/tournament/football/portugal/"
-    "liga-portugal/238"
+    "https://www.sofascore.com/tournament/football/portugal/liga-portugal/238"
 )
 TRANSFERMARKT_URL = (
     "https://www.transfermarkt.com/liga-portugal/startseite/wettbewerb/PO1"

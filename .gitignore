@@ -135,6 +135,7 @@ dmypy.json
 /last_run.json
 /.ruff_cache/
 /.claude
+/bot_health.txt
 
 # Test files
 debug_*.py

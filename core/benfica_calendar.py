@@ -34,9 +34,9 @@ CURRENT_SEASON = "2025/26"
 RANK_ID = "16094ecf-9e78-4e3e-bcdf-28e4f765de9f"
 
 # Tournament IDs - FALLBACK ONLY
-# The actual tournament IDs are extracted dynamically from checked checkboxes
-# on the calendar page. These are only used if extraction fails.
-# Format: "dp:tournament:" for Benfica's own format, "sr:tournament:" for SportRadar IDs
+# The actual tournament IDs are extracted dynamically from checked
+# checkboxes on the calendar page. These are only used if extraction fails.
+# Format: "dp:tournament:" for Benfica, "sr:tournament:" for SportRadar
 TOURNAMENT_IDS = [
     "dp:tournament:50d243c9-fee7-4b34-bdcc-22bf446935eb",  # Eusébio Cup
     "sr:tournament:7",  # UEFA Champions League
@@ -72,10 +72,10 @@ class Calendar:
         logger.debug("Calendar client initialized")
 
     def _extract_current_season(self) -> str | None:
-        """Extract current season from checked season checkbox in calendar page.
+        """Extract current season from checked checkbox in calendar page.
 
         Returns:
-            The current season string (e.g., "2025/26") or None if not found.
+            Current season string (e.g., "2025/26") or None if not found.
         """
         # Find the checked season checkbox
         season_checkbox = self.soup.find(
@@ -94,23 +94,23 @@ class Calendar:
         """Extract rank ID from checked radio button in calendar page.
 
         Returns:
-            The rank ID (UUID) of the currently selected team, or None if not found.
+            Rank ID (UUID) of the selected team, or None if not found.
         """
         # Find all checked radio buttons
         checked_radios = self.soup.find_all(
             "input", {"type": "radio", "checked": True}
         )
 
-        # Look for the one with a team name (has "name" attribute that's not just "radio")
+        # Look for one with a team name (not just "radio")
         for radio in checked_radios:
             name_attr = radio.get("name")
-            # Skip the gender selector radio button (name="radio")
-            # The team rank radio has a descriptive name like "Equipa Principal"
+            # Skip gender selector (name="radio")
+            # Team rank has descriptive name like "Equipa Principal"
             if name_attr and name_attr != "radio":
                 rank_id = radio.get("id")
                 if rank_id:
                     logger.debug(
-                        f"Extracted rank ID from page: {rank_id} (team: {name_attr})"
+                        f"Extracted rank ID: {rank_id} (team: {name_attr})"
                     )
                     return rank_id
 
@@ -143,8 +143,8 @@ class Calendar:
     def _create_payload(self) -> dict[str, Any]:
         """Create API request payload.
 
-        Extracts season, rank ID, and tournament IDs dynamically from the calendar
-        page to avoid hardcoding them. Falls back to constants if extraction fails.
+        Extracts season, rank ID, and tournament IDs dynamically from
+        calendar page. Falls back to constants if extraction fails.
 
         Returns:
             Dictionary with filters for calendar API.
@@ -223,7 +223,7 @@ class Calendar:
         payload = self._create_payload()
         logger.debug("Fetching calendar events from API")
 
-        # Use curl_cffi with Chrome impersonation and cookies from first request
+        # Use curl_cffi with Chrome impersonation and cookies
         response = requests.post(
             CALENDAR_API_URL,
             headers=headers,
@@ -477,7 +477,7 @@ def _generate_discord_previews(match_data: dict[str, Any]) -> str:
 
 
 def _run_dry_run() -> None:
-    """Execute dry-run mode showing detailed API extraction and Discord previews."""
+    """Execute dry-run mode showing API extraction and Discord previews."""
     print("\n" + "=" * 70)
     print("🔍 DRY RUN MODE - Calendar API Data Extraction")
     print("=" * 70 + "\n")

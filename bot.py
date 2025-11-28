@@ -24,20 +24,33 @@ from config import settings
 from config.constants import TIMEZONE
 from config.paths import LOG_FILE
 from config.validation import validate_config
-from tasks.daily import daily_covers
+from core.health_check import update_health_check
 
 # Configure logging
+from core.logging_config import StructuredFormatter
+from tasks.daily import daily_covers
+
+# Console handler - human-readable format
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+console_handler.setFormatter(console_formatter)
+
+# File handler - JSON format for easier parsing
+file_handler = logging.handlers.RotatingFileHandler(
+    str(LOG_FILE),
+    maxBytes=10_000_000,  # 10MB
+    backupCount=5,
+)
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(StructuredFormatter())
+
+# Configure root logger
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.StreamHandler(),  # Console output
-        logging.handlers.RotatingFileHandler(
-            str(LOG_FILE),
-            maxBytes=10_000_000,  # 10MB
-            backupCount=5,
-        ),
-    ],
+    handlers=[console_handler, file_handler],
 )
 logger = logging.getLogger(__name__)
 
@@ -205,12 +218,21 @@ async def on_ready() -> None:
     async def scheduled_daily_covers():
         await daily_covers(bot, channel_id)
 
+    # Daily covers job
     scheduler.add_job(
         scheduled_daily_covers,
         CronTrigger(hour=hour, timezone=TIMEZONE),
     )
+
+    # Health check job - updates every minute for monitoring
+    scheduler.add_job(
+        update_health_check,
+        CronTrigger(minute="*", timezone=TIMEZONE),
+    )
+
     scheduler.start()
     logger.info(f"Scheduler started, daily covers at {hour}:00 Lisbon time")
+    logger.info("Health check updates every minute")
 
     # Send startup message to configured channel
     try:

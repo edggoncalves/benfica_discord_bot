@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import re
 from io import BytesIO
@@ -137,14 +136,8 @@ async def _download_covers_data(cover_urls: list[str]) -> list[bytes]:
                     if response.status == 200:
                         data = await response.read()
                         images_data.append(data)
-            except (
-                aiohttp.ClientError,
-                asyncio.TimeoutError,
-                OSError,
-            ) as e:
-                logger.error(
-                    f"Error downloading {url}: {e}", exc_info=True
-                )
+            except (TimeoutError, aiohttp.ClientError, OSError) as e:
+                logger.error(f"Error downloading {url}: {e}", exc_info=True)
     return images_data
 
 
@@ -211,7 +204,9 @@ async def get_covers_as_discord_files() -> list[discord.File]:
     discord_files = []
     for i, image_data in enumerate(images_data):
         newspaper = (
-            NEWSPAPER_NAMES[i] if i < len(NEWSPAPER_NAMES) else f"jornal_{i+1}"
+            NEWSPAPER_NAMES[i]
+            if i < len(NEWSPAPER_NAMES)
+            else f"jornal_{i + 1}"
         )
         discord_file = discord.File(
             BytesIO(image_data), filename=f"{newspaper}.jpg"

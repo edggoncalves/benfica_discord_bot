@@ -234,7 +234,7 @@ async def test_daily_covers_get_covers_error(temp_last_run_file):
     with patch("tasks.daily._get_today_date", return_value="2025-11-24"):
         with patch(
             "tasks.daily.get_covers_as_discord_files",
-            side_effect=Exception("Test error"),
+            side_effect=ValueError("Test error"),
         ):
             # Should not raise exception
             await daily.daily_covers(mock_bot, 123456789)
@@ -252,7 +252,9 @@ async def test_daily_covers_send_error(temp_last_run_file):
     mock_bot = MagicMock()
     mock_channel = AsyncMock(spec=discord.TextChannel)
     mock_channel.name = "test-channel"
-    mock_channel.send.side_effect = Exception("Send failed")
+    mock_channel.send.side_effect = discord.HTTPException(
+        MagicMock(), "Send failed"
+    )
     mock_bot.get_channel.return_value = mock_channel
 
     mock_files = [MagicMock(spec=discord.File) for _ in range(3)]

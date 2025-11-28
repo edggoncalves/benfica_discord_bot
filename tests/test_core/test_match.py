@@ -40,7 +40,7 @@ def temp_match_file(tmp_path):
 
 def test_write_match_data(sample_match_data, temp_match_file):
     """Test writing match data to file."""
-    with patch("core.match.MATCH_DATA_FILE", temp_match_file):
+    with patch("core.match.repository.MATCH_DATA_FILE", temp_match_file):
         write_match_data(sample_match_data)
 
         assert temp_match_file.exists()
@@ -54,7 +54,7 @@ def test_write_match_data(sample_match_data, temp_match_file):
 def test_read_match_data(sample_match_data, temp_match_file):
     """Test reading match data from file."""
     # First write data
-    with patch("core.match.MATCH_DATA_FILE", temp_match_file):
+    with patch("core.match.repository.MATCH_DATA_FILE", temp_match_file):
         write_match_data(sample_match_data)
 
         # Then read it back
@@ -65,14 +65,16 @@ def test_read_match_data(sample_match_data, temp_match_file):
 
 def test_read_match_data_raises_when_missing():
     """Test that read_match_data raises FileNotFoundError when file missing."""
-    with patch("core.match.MATCH_DATA_FILE", Path("/nonexistent/file.json")):
+    with patch(
+        "core.match.repository.MATCH_DATA_FILE", Path("/nonexistent/file.json")
+    ):
         with pytest.raises(FileNotFoundError):
             read_match_data()
 
 
 def test_match_data_to_pendulum(sample_match_data, temp_match_file):
     """Test converting match data to pendulum datetime."""
-    with patch("core.match.MATCH_DATA_FILE", temp_match_file):
+    with patch("core.match.repository.MATCH_DATA_FILE", temp_match_file):
         write_match_data(sample_match_data)
         data = read_match_data()
 
@@ -84,14 +86,28 @@ def test_match_data_to_pendulum(sample_match_data, temp_match_file):
 
 def test_when_is_it(sample_match_data, temp_match_file):
     """Test when_is_it message formatting."""
-    with patch("core.match.MATCH_DATA_FILE", temp_match_file):
+    with patch("core.match.repository.MATCH_DATA_FILE", temp_match_file):
         write_match_data(sample_match_data)
+        # Mock get_match_data_with_refresh to prevent API calls
+        match_json = {
+            "year": 2025,
+            "month": 11,
+            "day": 25,
+            "hour": 20,
+            "minute": 15,
+            "adversary": "FC Porto",
+            "location": "Estádio da Luz",
+            "competition": "Liga Portugal",
+        }
+        with patch(
+            "core.match.formatter.get_match_data_with_refresh",
+            return_value=(match_json, False),
+        ):
+            result = when_is_it()
 
-        result = when_is_it()
-
-        assert "FC Porto" in result
-        assert "Estádio da Luz" in result
-        assert "Liga Portugal" in result
+            assert "FC Porto" in result
+            assert "Estádio da Luz" in result
+            assert "Liga Portugal" in result
 
 
 def test_how_long_until_future_match(temp_match_file):
@@ -106,7 +122,7 @@ def test_how_long_until_future_match(temp_match_file):
         "is_home": True,
     }
 
-    with patch("core.match.MATCH_DATA_FILE", temp_match_file):
+    with patch("core.match.repository.MATCH_DATA_FILE", temp_match_file):
         write_match_data(match_data)
 
         result = how_long_until()
@@ -117,22 +133,23 @@ def test_how_long_until_future_match(temp_match_file):
 
 def test_update_match_date_with_api_success():
     """Test update_match_date using API successfully."""
-    # Benfica API returns this format
-    api_data = {
-        "date": "25-11-2025",
-        "time": "20:15",
-        "adversary": "FC Porto",
-        "location": "Estádio da Luz",
-        "competition": "Liga Portugal",
-        "home": "Casa",
-    }
-
-    with patch("core.match.get_next_match_from_api", return_value=api_data):
-        with patch("core.match.write_match_data") as mock_write:
+    # Patch fetch_next_match where it's imported in refresh.py
+    with patch("core.match.refresh.fetch_next_match") as mock_fetch:
+        # Mock the normalized return value
+        mock_fetch.return_value = {
+            "date": pendulum.datetime(
+                2025, 11, 25, 20, 15, tz="Europe/Lisbon"
+            ),
+            "adversary": "FC Porto",
+            "location": "Estádio da Luz",
+            "competition": "Liga Portugal",
+            "is_home": True,
+        }
+        with patch("core.match.refresh.save_match_data") as mock_write:
             result = update_match_date()
 
             assert result is True
-            # Verify write_match_data was called once
+            # Verify save_match_data was called once
             mock_write.assert_called_once()
             # Verify the normalized data has a datetime object
             written_data = mock_write.call_args[0][0]
@@ -153,27 +170,26 @@ def test_update_match_date_with_espn_fallback():
         "is_home": True,
     }
 
-    with patch("core.match.get_next_match_from_api", return_value=None):
-        with patch("core.match.get_next_match", return_value=espn_data):
-            with patch("core.match.write_match_data") as mock_write:
-                result = update_match_date()
+    # Patch fetch_next_match where it's imported in refresh.py
+    with patch("core.match.refresh.fetch_next_match", return_value=espn_data):
+        with patch("core.match.refresh.save_match_data") as mock_write:
+            result = update_match_date()
 
-                assert result is True
-                # Verify write_match_data was called once
-                mock_write.assert_called_once()
-                # ESPN data is already normalized, should be passed through
-                written_data = mock_write.call_args[0][0]
-                assert written_data["adversary"] == "FC Porto"
-                assert written_data["is_home"] is True
+            assert result is True
+            # Verify save_match_data was called once
+            mock_write.assert_called_once()
+            # ESPN data is already normalized, should be passed through
+            written_data = mock_write.call_args[0][0]
+            assert written_data["adversary"] == "FC Porto"
+            assert written_data["is_home"] is True
 
 
 def test_update_match_date_fails_when_both_fail():
     """Test update_match_date returns False when both sources fail."""
-    with patch("core.match.get_next_match_from_api", return_value=None):
-        with patch("core.match.get_next_match", return_value=None):
-            result = update_match_date()
+    with patch("core.match.refresh.fetch_next_match", return_value=None):
+        result = update_match_date()
 
-            assert result is False
+        assert result is False
 
 
 def test_normalize_match_data_from_benfica_api():
