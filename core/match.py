@@ -10,6 +10,7 @@ from fake_useragent import UserAgent
 
 from config.constants import PULHAS, SLB, TIMEZONE, WEEKDAY
 from core.benfica_calendar import get_next_match_from_api
+from core.retry import retry_on_failure
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +33,11 @@ def _get_headers() -> dict:
     return {"User-Agent": ua.random}
 
 
+@retry_on_failure(
+    max_attempts=3,
+    delay=1.0,
+    exceptions=(requests.RequestException, TimeoutError),
+)
 def get_next_match() -> dict | None:
     """Scrape next match from ESPN using requests only (no Selenium).
 
@@ -129,16 +135,10 @@ def get_next_match() -> dict | None:
         return match_data
 
     except requests.RequestException as e:
-        logger.error(f"HTTP request failed: {e}")
+        logger.error(f"HTTP request failed: {e}", exc_info=True)
         return None
-    except (json.JSONDecodeError, KeyError, IndexError) as e:
-        logger.error(f"Failed to parse ESPN data: {e}")
-        return None
-    except Exception as e:
-        logger.error(f"Unexpected error getting match data: {e}")
-        import traceback
-
-        logger.error(f"Traceback:\n{traceback.format_exc()}")
+    except (json.JSONDecodeError, KeyError, IndexError, ValueError) as e:
+        logger.error(f"Failed to parse ESPN data: {e}", exc_info=True)
         return None
 
 

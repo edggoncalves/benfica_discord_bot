@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import re
 from io import BytesIO
@@ -67,8 +68,8 @@ async def _get_pictures() -> element.ResultSet | None:
         soup = BeautifulSoup(html_content, features="html.parser")
         images = soup.find_all("img")  # Changed from picture to img
         return images
-    except Exception as e:
-        logger.error(f"Error parsing HTML: {e}")
+    except (AttributeError, ValueError) as e:
+        logger.error(f"Error parsing HTML: {e}", exc_info=True)
         return None
 
 
@@ -136,8 +137,14 @@ async def _download_covers_data(cover_urls: list[str]) -> list[bytes]:
                     if response.status == 200:
                         data = await response.read()
                         images_data.append(data)
-            except Exception as e:
-                logger.error(f"Error downloading {url}: {e}")
+            except (
+                aiohttp.ClientError,
+                asyncio.TimeoutError,
+                OSError,
+            ) as e:
+                logger.error(
+                    f"Error downloading {url}: {e}", exc_info=True
+                )
     return images_data
 
 

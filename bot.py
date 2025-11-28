@@ -3,7 +3,9 @@
 A Discord bot that posts sports newspaper covers and Benfica match information.
 """
 
+import asyncio
 import logging
+import signal
 
 import discord
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -20,6 +22,7 @@ from commands.match import (
 from commands.totw import equipa_semana_command
 from config import settings
 from config.constants import TIMEZONE
+from config.validation import validate_config
 from tasks.daily import daily_covers
 
 # Configure logging
@@ -28,7 +31,11 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(),  # Console output
-        logging.FileHandler("bot.log"),  # File output
+        logging.handlers.RotatingFileHandler(
+            "bot.log",
+            maxBytes=10_000_000,  # 10MB
+            backupCount=5,
+        ),
     ],
 )
 logger = logging.getLogger(__name__)
@@ -62,9 +69,29 @@ def load_configuration() -> tuple[str, int, str]:
     # Get configuration parameters
     try:
         token = settings.get_required("DISCORD_TOKEN")
-        channel_id = int(settings.get_required("DISCORD_CHANNEL_ID"))
+        channel_id_str = settings.get_required("DISCORD_CHANNEL_ID")
         hour = settings.get("SCHEDULE_HOUR", "8")
+
+        # Validate configuration
+        config = {
+            "DISCORD_TOKEN": token,
+            "DISCORD_CHANNEL_ID": channel_id_str,
+            "SCHEDULE_HOUR": hour,
+        }
+        validation_errors = validate_config(config)
+
+        if validation_errors:
+            error_msg = (
+                "Configuration validation failed:\n"
+                + "\n".join(f"  - {err}" for err in validation_errors)
+            )
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+
+        channel_id = int(channel_id_str)
+        logger.info("Configuration loaded and validated successfully")
         return token, channel_id, hour
+
     except ValueError as e:
         logger.error(f"Configuration error: {e}")
         raise
@@ -235,6 +262,46 @@ async def on_app_command_error(
         logger.error(f"Failed to send error message: {e}")
 
 
+async def shutdown(sig):
+    """Cleanup tasks on shutdown.
+
+    Args:
+        sig: Signal received (SIGTERM or SIGINT).
+    """
+    logger.info(f"Received exit signal {sig.name}...")
+
+    # Cancel all running tasks
+    tasks = [t for t in asyncio.all_tasks()
+             if t is not asyncio.current_task()]
+
+    logger.info(f"Cancelling {len(tasks)} outstanding tasks")
+    for task in tasks:
+        task.cancel()
+
+    # Wait for all tasks to complete cancellation
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Close bot connection
+    await bot.close()
+    logger.info("Bot shutdown complete")
+
+
 if __name__ == "__main__":
     token, channel_id, hour = load_configuration()
-    bot.run(token)
+
+    # Set up signal handlers for graceful shutdown
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(
+            sig,
+            lambda s=sig: asyncio.create_task(shutdown(s))
+        )
+
+    try:
+        bot.run(token)
+    except KeyboardInterrupt:
+        logger.info("Received keyboard interrupt")
+    finally:
+        logger.info("Bot stopped")

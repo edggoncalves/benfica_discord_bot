@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup
 from curl_cffi import requests
 
 from config.constants import CALENDAR_API_URL, CALENDAR_URL, TIMEZONE
+from core.retry import retry_on_failure
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,11 @@ class Calendar:
         }
         return headers
 
+    @retry_on_failure(
+        max_attempts=3,
+        delay=1.0,
+        exceptions=(requests.RequestsError, TimeoutError),
+    )
     def get_events(self) -> list[dict[str, Any]]:
         """Fetch calendar events from API.
 

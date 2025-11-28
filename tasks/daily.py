@@ -5,6 +5,8 @@ import logging
 from datetime import datetime
 from pathlib import Path
 
+import discord
+
 from core.covers import get_covers_as_discord_files
 
 logger = logging.getLogger(__name__)
@@ -106,7 +108,13 @@ async def daily_covers(bot, channel_id: int) -> None:
             f"Daily covers posted successfully to channel {channel_id}"
         )
 
-    except Exception as e:
+    except (
+        discord.HTTPException,
+        discord.Forbidden,
+        discord.NotFound,
+        ValueError,
+        OSError,
+    ) as e:
         logger.error(
             f"Error in daily_covers task for channel {channel_id}: {e}",
             exc_info=True,
