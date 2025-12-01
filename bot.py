@@ -5,6 +5,7 @@ A Discord bot that posts sports newspaper covers and Benfica match information.
 
 import asyncio
 import logging
+import logging.handlers
 import signal
 
 import discord
