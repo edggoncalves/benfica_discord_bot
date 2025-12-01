@@ -4,7 +4,6 @@ import asyncio
 import logging
 
 import discord
-import pendulum
 
 from config.constants import (
     ERROR_EVENT_CREATE,
@@ -13,6 +12,7 @@ from config.constants import (
     ERROR_NO_MATCHES_FOUND,
 )
 from core.benfica_calendar import get_upcoming_matches
+from core.utils.date_parser import parse_dd_mm_yyyy_time
 
 logger = logging.getLogger(__name__)
 
@@ -62,9 +62,9 @@ async def criar_evento_command(
                 event_name = f"⚽ Benfica vs {match['adversary']}"
 
                 # Parse match datetime with Lisbon timezone
-                match_dt_aware = pendulum.parse(
-                    f"{match['date']} {match['time']}",
-                    tz="Europe/Lisbon",
+                # Date format: DD-MM-YYYY, Time format: HH:MM
+                match_dt_aware = parse_dd_mm_yyyy_time(
+                    match["date"], match["time"], timezone="Europe/Lisbon"
                 )
 
                 # Build event description with TV channel
@@ -90,7 +90,9 @@ async def criar_evento_command(
                 if existing_event:
                     # Compare details to see if update is needed
                     time_diff = abs(
-                        (existing_event.start_time - match_dt_aware).total_seconds()  # noqa: E501
+                        (
+                            existing_event.start_time - match_dt_aware
+                        ).total_seconds()  # noqa: E501
                     )
                     needs_update = (
                         existing_event.description != event_description
@@ -129,16 +131,16 @@ async def criar_evento_command(
                         privacy_level=discord.PrivacyLevel.guild_only,
                     )
                     created_count += 1
-                    logger.info(f"Created event: {event.name} (ID: {event.id})")  # noqa: E501
+                    logger.info(
+                        f"Created event: {event.name} (ID: {event.id})"
+                    )  # noqa: E501
 
             except Exception as e:
                 logger.error(
                     f"Error processing event for {match.get('adversary', 'Unknown')}: {e}",  # noqa: E501
                     exc_info=True,
                 )
-                errors.append(
-                    f"{match.get('adversary', 'Unknown')}: {str(e)}"
-                )
+                errors.append(f"{match.get('adversary', 'Unknown')}: {str(e)}")
 
         # Send summary message with all changes
         summary_lines = []

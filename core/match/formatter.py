@@ -7,6 +7,7 @@ import pendulum
 from config.constants import PULHAS, SLB, TIMEZONE, WEEKDAY
 from core.match.refresh import get_match_data_with_refresh
 from core.match.repository import match_data_to_pendulum
+from core.utils.date_parser import parse_dd_mm_yyyy_time
 
 logger = logging.getLogger(__name__)
 
@@ -112,24 +113,13 @@ def format_upcoming_matches_message(matches: list[dict]) -> str:
         return "❌ Não há jogos futuros disponíveis no calendário."
 
     # Number emojis for list items (1-10)
-    number_emojis = [
-        "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"
-    ]
+    number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
 
     lines = ["📅 **Próximos Jogos do Benfica**\n"]
 
     for idx, match in enumerate(matches):
         # Parse match date and time to create pendulum datetime
-        date_parts = match["date"].split("-")
-        time_parts = match["time"].split(":")
-        match_dt = pendulum.datetime(
-            year=int(date_parts[2]),
-            month=int(date_parts[1]),
-            day=int(date_parts[0]),
-            hour=int(time_parts[0]),
-            minute=int(time_parts[1]),
-            tz=TIMEZONE,
-        )
+        match_dt = parse_dd_mm_yyyy_time(match["date"], match["time"])
 
         # Use number emoji if available, otherwise use number
         if idx < len(number_emojis):

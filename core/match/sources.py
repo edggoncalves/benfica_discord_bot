@@ -5,13 +5,12 @@ import logging
 import re
 from datetime import datetime
 
-import pendulum
 import requests
 from fake_useragent import UserAgent
 
-from config.constants import TIMEZONE
 from core.benfica_calendar import get_next_match_from_api
 from core.retry import retry_on_failure
+from core.utils.date_parser import parse_dd_mm_yyyy_time
 
 logger = logging.getLogger(__name__)
 
@@ -153,15 +152,8 @@ def normalize_match_data(match_data: dict, source: str) -> dict:
     if source == "benfica_api":
         # Benfica API returns: date="DD-MM-YYYY", time="HH:mm",
         # home="Casa"/"Fora"
-        date_parts = match_data["date"].split("-")
-        time_parts = match_data["time"].split(":")
-        match_dt = pendulum.datetime(
-            year=int(date_parts[2]),
-            month=int(date_parts[1]),
-            day=int(date_parts[0]),
-            hour=int(time_parts[0]),
-            minute=int(time_parts[1]),
-            tz=TIMEZONE,
+        match_dt = parse_dd_mm_yyyy_time(
+            match_data["date"], match_data["time"]
         )
         normalized = {
             "date": match_dt,

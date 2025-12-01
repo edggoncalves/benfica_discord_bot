@@ -330,7 +330,7 @@ async def shutdown(sig):
     try:
         await asyncio.wait_for(
             asyncio.gather(*tasks, return_exceptions=True),
-            timeout=10.0  # 10 second timeout
+            timeout=10.0,  # 10 second timeout
         )
         logger.info("All tasks cancelled successfully")
     except TimeoutError:

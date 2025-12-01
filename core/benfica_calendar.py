@@ -16,6 +16,7 @@ from curl_cffi import requests
 
 from config.constants import CALENDAR_API_URL, CALENDAR_URL, TIMEZONE
 from core.retry import retry_on_failure
+from core.utils.date_parser import parse_dd_mm_yyyy_time
 
 logger = logging.getLogger(__name__)
 
@@ -385,16 +386,7 @@ def _generate_discord_previews(match_data: dict[str, Any]) -> str:
         Formatted string with all Discord message previews.
     """
     # Parse date for Discord timestamp
-    date_parts = match_data["date"].split("-")
-    time_parts = match_data["time"].split(":")
-    match_dt = pendulum.datetime(
-        year=int(date_parts[2]),
-        month=int(date_parts[1]),
-        day=int(date_parts[0]),
-        hour=int(time_parts[0]),
-        minute=int(time_parts[1]),
-        tz=TIMEZONE,
-    )
+    match_dt = parse_dd_mm_yyyy_time(match_data["date"], match_data["time"])
     timestamp = int(match_dt.timestamp())
 
     # Import emojis and constants
