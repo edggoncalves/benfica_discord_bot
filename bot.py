@@ -16,6 +16,7 @@ from discord.ext import commands
 from commands.calendar import calendario_command
 from commands.covers import capas_command
 from commands.events import criar_evento_command
+from commands.help import help_command
 from commands.match import (
     actualizar_data_command,
     quando_joga_command,
@@ -212,6 +213,14 @@ async def calendario(
     await calendario_command(interaction, quantidade)
 
 
+@bot.tree.command(name="help", description="Mostrar comandos disponíveis")
+async def help_cmd(interaction: discord.Interaction) -> None:
+    """Show available bot commands."""
+    if not await safe_defer(interaction):
+        return
+    await help_command(interaction)
+
+
 @bot.event
 async def on_ready() -> None:
     """Event handler for bot ready state."""
@@ -254,17 +263,7 @@ async def on_ready() -> None:
         channel = bot.get_channel(channel_id)
         if channel:
             startup_msg = (
-                "🔴⚪ **Bot Iniciado!** ⚪🔴\n\n"
-                f"✅ Online e pronto para usar!\n"
-                f"📅 Capas diárias agendadas para as {hour}:00\n\n"
-                "**Comandos disponíveis:**\n"
-                "`/capas` - Capas dos jornais\n"
-                "`/equipa_semana` - Equipa da semana\n"
-                "`/actualizar_data` - Atualizar dados do jogo\n"
-                "`/quanto_falta` - Tempo até ao próximo jogo\n"
-                "`/quando_joga` - Quando joga o Benfica\n"
-                "`/criar_evento` - Criar evento no Discord\n"
-                "`/calendario` - Próximos jogos do Benfica"
+                "🔴⚪ Bot iniciado! Use `/help` para ver comandos disponíveis."
             )
             await channel.send(startup_msg)
             logger.info("Startup message sent to channel")

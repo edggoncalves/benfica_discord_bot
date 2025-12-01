@@ -112,7 +112,9 @@ def format_upcoming_matches_message(matches: list[dict]) -> str:
         return "❌ Não há jogos futuros disponíveis no calendário."
 
     # Number emojis for list items (1-10)
-    number_emojis = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    number_emojis = [
+        "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"
+    ]
 
     lines = ["📅 **Próximos Jogos do Benfica**\n"]
 
