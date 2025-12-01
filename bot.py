@@ -96,9 +96,8 @@ def load_configuration() -> tuple[str, int, str]:
         validation_errors = validate_config(config)
 
         if validation_errors:
-            error_msg = (
-                "Configuration validation failed:\n"
-                + "\n".join(f"  - {err}" for err in validation_errors)
+            error_msg = "Configuration validation failed:\n" + "\n".join(
+                f"  - {err}" for err in validation_errors
             )
             logger.error(error_msg)
             raise ValueError(error_msg)
@@ -310,8 +309,7 @@ async def shutdown(sig):
     logger.info(f"Received exit signal {sig.name}...")
 
     # Cancel all running tasks
-    tasks = [t for t in asyncio.all_tasks()
-             if t is not asyncio.current_task()]
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
 
     logger.info(f"Cancelling {len(tasks)} outstanding tasks")
     for task in tasks:
@@ -334,8 +332,7 @@ if __name__ == "__main__":
 
     for sig in (signal.SIGTERM, signal.SIGINT):
         loop.add_signal_handler(
-            sig,
-            lambda s=sig: asyncio.create_task(shutdown(s))
+            sig, lambda s=sig: asyncio.create_task(shutdown(s))
         )
 
     try:

@@ -54,9 +54,7 @@ def async_command(
                 logger.error(f"File not found in {func.__name__}: {e}")
                 await interaction.followup.send(error_message)
             except Exception as e:
-                logger.error(
-                    f"Error in {func.__name__}: {e}", exc_info=True
-                )
+                logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
                 await interaction.followup.send(error_message)
 
         return wrapper
@@ -100,9 +98,7 @@ def sync_command(
                 await func(interaction, *args, **kwargs)
 
             except FileNotFoundError as e:
-                logger.error(
-                    f"File not found in {func.__name__}: {e}"
-                )
+                logger.error(f"File not found in {func.__name__}: {e}")
                 msg = (
                     file_not_found_message
                     if file_not_found_message
@@ -110,9 +106,7 @@ def sync_command(
                 )
                 await interaction.followup.send(msg)
             except Exception as e:
-                logger.error(
-                    f"Error in {func.__name__}: {e}", exc_info=True
-                )
+                logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
                 await interaction.followup.send(error_message)
 
         return wrapper
