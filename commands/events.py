@@ -89,10 +89,10 @@ async def criar_evento_command(
 
                 if existing_event:
                     # Compare details to see if update is needed
-                    # Convert both times to UTC for accurate comparison
-                    existing_utc = existing_event.start_time.astimezone()
-                    match_utc = match_dt_aware.astimezone()
-                    time_diff = abs((existing_utc - match_utc).total_seconds())
+                    # Use timestamps for timezone-independent comparison
+                    existing_timestamp = existing_event.start_time.timestamp()
+                    match_timestamp = match_dt_aware.timestamp()
+                    time_diff = abs(existing_timestamp - match_timestamp)
                     needs_update = (
                         existing_event.description != event_description
                         or existing_event.location != match["location"]
