@@ -63,6 +63,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Configuration variables (loaded at startup)
 channel_id: int
 hour: str
+scheduler: AsyncIOScheduler | None = None
 
 
 def load_configuration() -> tuple[str, int, str]:
@@ -225,6 +226,7 @@ async def on_ready() -> None:
         logger.error(f"Failed to sync commands: {e}")
 
     # Start scheduler with Lisbon timezone
+    global scheduler
     scheduler = AsyncIOScheduler()
 
     # Create wrapper to ensure async function is properly scheduled
@@ -307,17 +309,32 @@ async def shutdown(sig):
     """
     logger.info(f"Received exit signal {sig.name}...")
 
-    # Cancel all running tasks
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    # 1. Stop scheduler first (prevents new jobs from starting)
+    global scheduler
+    if scheduler:
+        logger.info("Shutting down scheduler...")
+        scheduler.shutdown(wait=False)  # Don't wait for running jobs
+        logger.info("Scheduler shut down")
 
+    # 2. Cancel all running asyncio tasks
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     logger.info(f"Cancelling {len(tasks)} outstanding tasks")
     for task in tasks:
         task.cancel()
 
-    # Wait for all tasks to complete cancellation
-    await asyncio.gather(*tasks, return_exceptions=True)
+    # 3. Wait for tasks with timeout (don't hang forever)
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=10.0  # 10 second timeout
+        )
+        logger.info("All tasks cancelled successfully")
+    except TimeoutError:
+        logger.warning(
+            "Task cancellation timed out after 10s, forcing shutdown"
+        )
 
-    # Close bot connection
+    # 4. Close bot connection
     await bot.close()
     logger.info("Bot shutdown complete")
 
