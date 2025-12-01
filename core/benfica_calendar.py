@@ -476,6 +476,49 @@ def _generate_discord_previews(match_data: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def get_upcoming_matches(limit: int = 5) -> list[dict] | None:
+    """Get multiple upcoming Benfica matches from calendar API.
+
+    Args:
+        limit: Maximum number of matches to return (default 5).
+
+    Returns:
+        List of match dictionaries sorted by date, or None if error.
+        Each dict contains: date, time, adversary, location, competition,
+        home (bool), tv_channel (optional).
+
+    Raises:
+        requests.RequestsError: If API request fails.
+    """
+    try:
+        logger.info(
+            f"Attempting to fetch {limit} upcoming matches from Benfica API"
+        )
+        calendar = Calendar()
+        events = calendar.get_events()
+
+        if not events:
+            logger.warning("No events found in API response")
+            return None
+
+        matches = []
+        for event in events:
+            match = _parse_match_from_event(event)
+            if match:  # Only future matches (past matches return None)
+                matches.append(match)
+                if len(matches) >= limit:
+                    break
+
+        logger.info(f"Successfully fetched {len(matches)} upcoming matches")
+        return matches if matches else None
+    except requests.RequestsError as e:
+        logger.error(f"API error fetching upcoming matches: {e}")
+        return None
+    except (KeyError, ValueError) as e:
+        logger.error(f"Parse error fetching upcoming matches: {e}")
+        return None
+
+
 def _run_dry_run() -> None:
     """Execute dry-run mode showing API extraction and Discord previews."""
     print("\n" + "=" * 70)

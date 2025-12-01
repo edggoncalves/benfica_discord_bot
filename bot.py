@@ -12,6 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from discord.ext import commands
 
+from commands.calendar import calendario_command
 from commands.covers import capas_command
 from commands.events import criar_evento_command
 from commands.match import (
@@ -196,6 +197,21 @@ async def criar_evento(interaction: discord.Interaction) -> None:
     if not await safe_defer(interaction):
         return
     await criar_evento_command(interaction)
+
+
+@bot.tree.command(
+    name="calendario", description="Mostra os próximos jogos do Benfica"
+)
+@discord.app_commands.describe(
+    quantidade="Número de jogos a mostrar (1-10, padrão: 5)"
+)
+async def calendario(
+    interaction: discord.Interaction, quantidade: int = 5
+) -> None:
+    """Show upcoming Benfica matches."""
+    if not await safe_defer(interaction):
+        return
+    await calendario_command(interaction, quantidade)
 
 
 @bot.event

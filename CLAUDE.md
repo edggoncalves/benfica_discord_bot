@@ -140,6 +140,8 @@ All commands use Discord's native slash command system (prefix: `/`):
 - `/actualizar_data` - Updates match date from ESPN (fast, <1 second, no browser needed)
 - `/equipa_semana` - Posts SofaScore team of the week screenshot (rate-limited to once per day)
 - `/criar_evento` - Creates a Discord scheduled event for the next match (requires match data and Manage Events permission)
+- `/calendario` - Shows upcoming Benfica matches (default 5, max 10)
+  - Optional parameter: `quantidade` to specify number of matches (1-10)
 
 All commands have proper error handling and provide user feedback on failures.
 

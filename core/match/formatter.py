@@ -97,3 +97,83 @@ def format_match_schedule_message() -> str:
         sentence += f" 📺 {match_data['tv_channel']}"
 
     return sentence
+
+
+def format_upcoming_matches_message(matches: list[dict]) -> str:
+    """Generate message showing multiple upcoming matches.
+
+    Args:
+        matches: List of match dictionaries from get_upcoming_matches().
+
+    Returns:
+        Formatted string with all upcoming matches.
+    """
+    if not matches:
+        return "❌ Não há jogos futuros disponíveis no calendário."
+
+    # Number emojis for list items (1-10)
+    number_emojis = [
+        "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"
+    ]
+
+    lines = ["📅 **Próximos Jogos do Benfica**\n"]
+
+    for idx, match in enumerate(matches):
+        # Parse match date and time to create pendulum datetime
+        date_parts = match["date"].split("-")
+        time_parts = match["time"].split(":")
+        match_dt = pendulum.datetime(
+            year=int(date_parts[2]),
+            month=int(date_parts[1]),
+            day=int(date_parts[0]),
+            hour=int(time_parts[0]),
+            minute=int(time_parts[1]),
+            tz=TIMEZONE,
+        )
+
+        # Get weekday name and format date
+        weekday_name = WEEKDAY[match_dt.isoweekday()]
+        day_num = match_dt.day
+        month_name = match_dt.format("MMM", locale="pt")
+
+        # Use number emoji if available, otherwise use number
+        if idx < len(number_emojis):
+            number = number_emojis[idx]
+        else:
+            number = f"{idx + 1}."
+
+        # Build match display
+        date_str = (
+            f"{weekday_name}, {day_num} {month_name} às {match['time']}"
+        )
+        lines.append(f"{number} **{date_str}**")
+
+        # Determine home/away with emoji
+        is_home = match.get("home", True)
+        home_away_indicator = "🏠 Casa" if is_home else "✈️ Fora"
+
+        # Format the match info
+        if is_home:
+            match_info = (
+                f"   ⚽ {SLB} vs {match['adversary']} "
+                f"{home_away_indicator}"
+            )
+        else:
+            match_info = (
+                f"   ⚽ {match['adversary']} vs {SLB} "
+                f"{home_away_indicator}"
+            )
+
+        lines.append(match_info)
+        lines.append(f"   🏟️ {match['location']}")
+        lines.append(f"   🏆 {match['competition']}")
+
+        # Add TV channel if available
+        if match.get("tv_channel"):
+            lines.append(f"   📺 {match['tv_channel']}")
+
+        # Add blank line between matches (except after last one)
+        if idx < len(matches) - 1:
+            lines.append("")
+
+    return "\n".join(lines)
