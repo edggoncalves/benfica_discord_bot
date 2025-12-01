@@ -189,13 +189,18 @@ async def equipa_semana(interaction: discord.Interaction) -> None:
 
 @bot.tree.command(
     name="criar_evento",
-    description="Criar evento no Discord para o próximo jogo",
+    description="Criar eventos no Discord para os próximos jogos",
 )
-async def criar_evento(interaction: discord.Interaction) -> None:
-    """Create a Discord scheduled event for the next match."""
+@discord.app_commands.describe(
+    quantidade="Número de jogos para criar eventos (padrão: 1, máx: 10)"
+)
+async def criar_evento(
+    interaction: discord.Interaction, quantidade: int = 1
+) -> None:
+    """Create Discord scheduled events for upcoming matches."""
     if not await safe_defer(interaction):
         return
-    await criar_evento_command(interaction)
+    await criar_evento_command(interaction, quantidade)
 
 
 @bot.tree.command(

@@ -46,6 +46,10 @@ ERROR_NO_UPCOMING_MATCH = (
     "❌ Não há jogos futuros disponíveis no calendário. "
     "Verifica mais tarde."
 )
+ERROR_INVALID_QUANTITY = "❌ Quantidade deve ser pelo menos 1."
+ERROR_NO_MATCHES_FOUND = (
+    "❌ Não foi possível obter jogos futuros do calendário."
+)
 
 # Success messages
 SUCCESS_MATCH_DATA_UPDATED = (
