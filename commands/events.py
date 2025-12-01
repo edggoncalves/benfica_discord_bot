@@ -89,11 +89,10 @@ async def criar_evento_command(
 
                 if existing_event:
                     # Compare details to see if update is needed
-                    time_diff = abs(
-                        (
-                            existing_event.start_time - match_dt_aware
-                        ).total_seconds()  # noqa: E501
-                    )
+                    # Convert both times to UTC for accurate comparison
+                    existing_utc = existing_event.start_time.astimezone()
+                    match_utc = match_dt_aware.astimezone()
+                    time_diff = abs((existing_utc - match_utc).total_seconds())
                     needs_update = (
                         existing_event.description != event_description
                         or existing_event.location != match["location"]
@@ -148,10 +147,17 @@ async def criar_evento_command(
             summary_lines.append(f"✅ Criados: {created_count}")
         if updated_count > 0:
             summary_lines.append(f"🔄 Atualizados: {updated_count}")
-        if unchanged_count > 0:
-            summary_lines.append(f"✓ Sem alterações: {unchanged_count}")
         if errors:
             summary_lines.append(f"❌ Erros: {len(errors)}")
+
+        # Only show "no changes" if nothing was created, updated, or errored
+        if (
+            created_count == 0
+            and updated_count == 0
+            and len(errors) == 0
+            and unchanged_count > 0
+        ):
+            summary_lines.append("✓ Sem alterações")
 
         summary = "📅 **Resumo:**\n" + "\n".join(summary_lines)
         await interaction.followup.send(summary)
