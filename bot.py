@@ -56,12 +56,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Configure bot with minimal required intents
+# Configure bot (command_prefix required but unused - bot uses slash commands)
 intents = discord.Intents.default()
-description = "Um bot para obter capas de jornais."
-bot = commands.Bot(
-    command_prefix="!", description=description, intents=intents
-)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Configuration variables (loaded at startup)
 channel_id: int
@@ -264,7 +261,8 @@ async def on_ready() -> None:
                 "`/actualizar_data` - Atualizar dados do jogo\n"
                 "`/quanto_falta` - Tempo até ao próximo jogo\n"
                 "`/quando_joga` - Quando joga o Benfica\n"
-                "`/criar_evento` - Criar evento no Discord"
+                "`/criar_evento` - Criar evento no Discord\n"
+                "`/calendario` - Próximos jogos do Benfica"
             )
             await channel.send(startup_msg)
             logger.info("Startup message sent to channel")

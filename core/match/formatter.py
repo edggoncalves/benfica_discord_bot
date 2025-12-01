@@ -4,7 +4,7 @@ import logging
 
 import pendulum
 
-from config.constants import PULHAS, SLB, TIMEZONE, WEEKDAY
+from config.constants import MONTH, PULHAS, SLB, TIMEZONE, WEEKDAY
 from core.match.refresh import get_match_data_with_refresh
 from core.match.repository import match_data_to_pendulum
 
@@ -132,7 +132,7 @@ def format_upcoming_matches_message(matches: list[dict]) -> str:
         # Get weekday name and format date
         weekday_name = WEEKDAY[match_dt.isoweekday()]
         day_num = match_dt.day
-        month_name = match_dt.format("MMM", locale="pt")
+        month_name = MONTH[match_dt.month]
 
         # Use number emoji if available, otherwise use number
         if idx < len(number_emojis):

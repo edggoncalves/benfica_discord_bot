@@ -27,6 +27,22 @@ WEEKDAY = {
     7: "Domingo",
 }
 
+# Month names in Portuguese (abbreviated)
+MONTH = {
+    1: "Jan",
+    2: "Fev",
+    3: "Mar",
+    4: "Abr",
+    5: "Mai",
+    6: "Jun",
+    7: "Jul",
+    8: "Ago",
+    9: "Set",
+    10: "Out",
+    11: "Nov",
+    12: "Dez",
+}
+
 # Error messages
 ERROR_MATCH_DATA_NOT_FOUND = (
     "Dados do jogo não encontrados. Usa `/actualizar_data` primeiro."
