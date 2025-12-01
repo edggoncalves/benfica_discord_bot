@@ -145,7 +145,9 @@ def format_upcoming_matches_message(matches: list[dict]) -> str:
         lines.append(f"{number} **{date_str}**")
 
         # Determine home/away with emoji
-        is_home = match.get("home", True)
+        # Note: home field is a string ("Casa" or "Fora"), not a boolean
+        home_str = match.get("home", "Casa")
+        is_home = home_str == "Casa"
         home_away_indicator = "🏠 Casa" if is_home else "✈️ Fora"
 
         # Format the match info
