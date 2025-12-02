@@ -6,17 +6,22 @@ from datetime import timedelta
 
 import discord
 
+from config import settings
 from config.constants import ERROR_TOTW_FETCH
 from core.rate_limit import rate_limit
 from core.team_of_week import fetch_team_week
 
 logger = logging.getLogger(__name__)
 
+# Load rate limit hours from configuration with default of 24
+rate_hours = int(settings.get("RATE_LIMIT_HOURS", "24"))
+
 
 @rate_limit(
     per_user=False,
-    interval=timedelta(hours=24),
-    message="Equipa da semana já foi pedida hoje. Tenta amanhã!",
+    per_guild=True,
+    interval=timedelta(hours=rate_hours),
+    message="Equipa da semana já foi pedida neste servidor. Tenta mais tarde!",
 )
 async def equipa_semana_command(interaction: discord.Interaction) -> None:
     """Handle /equipa_semana slash command.

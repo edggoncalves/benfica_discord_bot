@@ -54,6 +54,22 @@ def validate_schedule_hour(hour: str) -> bool:
     return 0 <= hour_int <= 23
 
 
+def validate_rate_limit_hours(hours: str) -> bool:
+    """Validate rate limit hours is a positive integer.
+
+    Args:
+        hours: Hours value to validate.
+
+    Returns:
+        True if hours is valid (positive integer), False otherwise.
+    """
+    if not hours.isdigit():
+        return False
+
+    hours_int = int(hours)
+    return hours_int > 0
+
+
 def validate_config(config: dict[str, Any]) -> list[str]:
     """Validate all configuration values.
 

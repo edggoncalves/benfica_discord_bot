@@ -8,6 +8,8 @@ from typing import Any
 
 import discord
 
+from config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -74,9 +76,29 @@ class RateLimiter:
 _rate_limiter = RateLimiter()
 
 
+def _format_remaining_time(seconds: int) -> str:
+    """Format remaining seconds into human-readable time.
+
+    Args:
+        seconds: Remaining seconds.
+
+    Returns:
+        Formatted time string (e.g., "2h", "45m", "30s").
+    """
+    if seconds >= 3600:
+        hours = seconds // 3600
+        return f"{hours}h"
+    elif seconds >= 60:
+        minutes = seconds // 60
+        return f"{minutes}m"
+    else:
+        return f"{seconds}s"
+
+
 def rate_limit(
     *,
     per_user: bool = True,
+    per_guild: bool = False,
     interval: timedelta = timedelta(hours=24),
     message: str = "This command is rate-limited. Try again later.",
 ):
@@ -84,11 +106,14 @@ def rate_limit(
 
     Args:
         per_user: If True, limit per user. If False, limit globally.
+        per_guild: If True, limit per guild (server). If False, global.
         interval: Minimum time between allowed calls.
         message: Message to send when rate limited.
 
     Example:
-        @rate_limit(per_user=True, interval=timedelta(hours=24))
+        @rate_limit(
+            per_user=False, per_guild=True, interval=timedelta(hours=24)
+        )
         async def my_command(interaction: discord.Interaction) -> None:
             # Command logic here
             pass
@@ -99,21 +124,46 @@ def rate_limit(
         async def wrapper(
             interaction: discord.Interaction, *args: Any, **kwargs: Any
         ) -> Any:
-            # Generate rate limit key
+            # Check bypass first
+            bypass_ids = settings.get_bypass_user_ids()
+            if interaction.user.id in bypass_ids:
+                logger.info(
+                    f"User {interaction.user.id} bypassing rate limit "
+                    f"for {func.__name__}"
+                )
+                return await func(interaction, *args, **kwargs)
+
+            # Build rate limit key based on scope
+            key_parts = [func.__name__]
+
+            if per_guild:
+                # Per-guild limiting (each server independent)
+                if interaction.guild_id:
+                    key_parts.append(str(interaction.guild_id))
+                else:
+                    # DMs: fall back to global or per-user
+                    logger.debug(
+                        f"{func.__name__} called in DM, using global key"
+                    )
+
             if per_user:
-                key = f"{func.__name__}:{interaction.user.id}"
-            else:
-                key = func.__name__
+                key_parts.append(str(interaction.user.id))
+
+            key = ":".join(key_parts)
 
             # Check rate limit
             if not _rate_limiter.is_allowed(key, interval):
                 remaining = _rate_limiter.get_remaining_time(key, interval)
+                formatted_time = _format_remaining_time(remaining)
+
                 logger.info(
                     f"Rate limit hit for {func.__name__} by "
-                    f"{interaction.user} ({remaining}s remaining)"
+                    f"{interaction.user} (key={key}, "
+                    f"{formatted_time} restantes)"
                 )
+
                 await interaction.followup.send(
-                    f"{message} ({remaining}s remaining)", ephemeral=True
+                    f"{message} ({formatted_time} restantes)", ephemeral=True
                 )
                 return None
 

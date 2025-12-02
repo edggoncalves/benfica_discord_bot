@@ -1,7 +1,10 @@
+import logging
 import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 # Path to .env file (in project root, not config dir)
 env_path = Path(__file__).parent.parent / ".env"
@@ -60,6 +63,32 @@ def get_required(key: str) -> str:
     if value is None:
         raise ValueError(f"Required environment variable '{key}' not found")
     return value
+
+
+def get_bypass_user_ids() -> set[int]:
+    """Get set of user IDs who can bypass rate limits.
+
+    Parses comma-separated user IDs from BYPASS_USER_IDS env var.
+    Returns empty set if not configured or contains invalid IDs.
+
+    Returns:
+        Set of user IDs allowed to bypass limits (empty if none configured).
+    """
+    _ensure_env_loaded()
+    ids_str = os.getenv("BYPASS_USER_IDS", "")
+
+    if not ids_str or ids_str.strip() == "":
+        return set()
+
+    try:
+        result = {int(id.strip()) for id in ids_str.split(",") if id.strip()}
+        logger.info(f"Loaded {len(result)} bypass user IDs")
+        return result
+    except ValueError as e:
+        logger.warning(
+            f"Invalid BYPASS_USER_IDS format: {e}. Returning empty set."
+        )
+        return set()
 
 
 def setup_interactive() -> None:
