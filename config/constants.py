@@ -43,8 +43,7 @@ ERROR_TOTW_FETCH = "❌ Erro ao obter equipa da semana."
 ERROR_EVENT_CREATE = "❌ Erro ao criar evento"
 ERROR_GUILD_ONLY = "❌ Este comando só funciona em servidores."
 ERROR_NO_UPCOMING_MATCH = (
-    "❌ Não há jogos futuros disponíveis no calendário. "
-    "Verifica mais tarde."
+    "❌ Não há jogos futuros disponíveis no calendário. Verifica mais tarde."
 )
 ERROR_INVALID_QUANTITY = "❌ Quantidade deve ser pelo menos 1."
 ERROR_NO_MATCHES_FOUND = (
@@ -53,8 +52,7 @@ ERROR_NO_MATCHES_FOUND = (
 
 # Success messages
 SUCCESS_MATCH_DATA_UPDATED = (
-    "✅ Data do jogo actualizada. "
-    "Testa com `/quando_joga` ou `/quanto_falta`"
+    "✅ Data do jogo actualizada. Testa com `/quando_joga` ou `/quanto_falta`"
 )
 SUCCESS_MATCH_DATA_REFRESHED = "🔄 A actualizar dados do calendário..."
 SUCCESS_EVENT_CREATED = "✅ Evento criado com sucesso!"
@@ -66,10 +64,8 @@ SUCCESS_EVENT_DESCRIPTION = (
 
 # Event messages
 EVENT_ALREADY_EXISTS = (
-    "❌ Já existe um evento com este nome!\n"
-    "📅 {name}\n"
-    "🕐 <t:{timestamp}:F>"
+    "❌ Já existe um evento com este nome!\n📅 {name}\n🕐 <t:{timestamp}:F>"
 )
 EVENT_CREATED = (
-    "✅ Evento criado com sucesso!\n" "📅 {name}\n" "🕐 <t:{timestamp}:F>"
+    "✅ Evento criado com sucesso!\n📅 {name}\n🕐 <t:{timestamp}:F>"
 )

@@ -142,13 +142,11 @@ def format_upcoming_matches_message(matches: list[dict]) -> str:
         # Format the match info
         if is_home:
             match_info = (
-                f"   ⚽ {SLB} vs {match['adversary']} "
-                f"{home_away_indicator}"
+                f"   ⚽ {SLB} vs {match['adversary']} {home_away_indicator}"
             )
         else:
             match_info = (
-                f"   ⚽ {match['adversary']} vs {SLB} "
-                f"{home_away_indicator}"
+                f"   ⚽ {match['adversary']} vs {SLB} {home_away_indicator}"
             )
 
         lines.append(match_info)

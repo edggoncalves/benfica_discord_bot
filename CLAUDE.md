@@ -76,21 +76,24 @@ SCHEDULE_HOUR=8
 - Proper error handling and logging
 - Fixed bug: driver age check now works correctly on all paths
 
-**[totw.py](totw.py)** - Team of the Week
+**[commands/totw.py](commands/totw.py)** - Team of the Week command
+**[core/team_of_week.py](core/team_of_week.py)** - Team of the Week implementation
 
 - Screenshots SofaScore's Liga Portugal Betclic Team of the Week widget
 - **Fully automated**: No manual updates needed!
-  - Extracts current season ID from SofaScore using curl_cffi (yearly changes)
-  - Extracts current matchday from Transfermarkt using curl_cffi (weekly changes)
+  - Extracts current season ID from SofaScore page using curl_cffi (yearly changes)
+  - Extracts current matchday from **SofaScore API** using curl_cffi (weekly changes)
+  - Uses official API endpoint: `/api/v1/unique-tournament/238/season/{id}/rounds`
   - Calculates SofaScore round ID using formula: `BASE_ROUND_ID + matchday`
   - Builds widget URL dynamically with both season and round
+- **Reliable data source**: Uses SofaScore's own API for accurate current round detection
 - **Performance optimized**: Uses Firefox only once (for screenshot, not data extraction)
-- **Image processing**: Crops screenshot to show only team formation (50% top portion), removes branding
+- **Image processing**: Crops screenshot to show only team formation (75% of height), removes branding
 - Uses `curl_cffi` with Chrome impersonation to bypass bot detection (no 403 errors)
 - Uses direct widget embed URL from <https://widgets.sofascore.com> (no dialogs!)
 - Fallback mechanism: Uses hardcoded URL if extraction fails
-- Session caching: Caches season ID and matchday to avoid repeated lookups
-- **Note**: `BASE_ROUND_ID` (22524) may need adjustment if SofaScore changes their ID scheme
+- Session caching: Caches season ID and matchday to avoid repeated lookups (24h expiry)
+- **Note**: `BASE_ROUND_ID` (22951) is specific to 2025/26 season and may need adjustment when season changes
 - Uses curl_cffi for HTTP requests, Selenium for screenshot, PIL for image cropping
 - Returns cropped screenshot as Discord File (smaller file size, cleaner appearance)
 - Proper browser cleanup with try/finally

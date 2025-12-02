@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from io import BytesIO
 from typing import Any
 
-from bs4 import BeautifulSoup
 from curl_cffi import requests
 from discord import File as DFile
 from PIL import Image
@@ -23,20 +22,24 @@ TOURNAMENT_ID = 238  # Liga Portugal Betclic
 TOURNAMENT_URL = (
     "https://www.sofascore.com/tournament/football/portugal/liga-portugal/238"
 )
-TRANSFERMARKT_URL = (
-    "https://www.transfermarkt.com/liga-portugal/startseite/wettbewerb/PO1"
+SOFASCORE_API_ROUNDS_URL = (
+    "https://api.sofascore.com/api/v1/unique-tournament/{tournament_id}/"
+    "season/{season_id}/rounds"
 )
 
-# Round ID calculation: Based on observation, SofaScore round_id =
-# BASE_ROUND_ID + matchday. This was derived from: Matchday 13 → Round ID
-# 22537, therefore base = 22537 - 13 = 22524. Note: This may need
-# adjustment if SofaScore changes their ID scheme
-BASE_ROUND_ID = 22524
+# Round ID calculation: SofaScore uses round_id = BASE_ROUND_ID + matchday.
+# This was derived from: API currentRound=12, working URL uses round=22963,
+# therefore: BASE_ROUND_ID = 22963 - 12 = 22951.
+# Note: This BASE_ROUND_ID is specific to the 2025/26 season and may need
+# adjustment when the season changes. Each season appears to have its own
+# base round ID offset.
+BASE_ROUND_ID = 22951
 
 # Fallback widget URL (will be used if dynamic extraction fails)
+# Updated for 2025/26 season, matchday 12
 FALLBACK_WIDGET_URL = (
     "https://widgets.sofascore.com/embed/unique-tournament/238/season/77806/"
-    "round/22537/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
+    "round/22963/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
     "&widgetTitle=Liga%20Portugal%20Betclic"
 )
 PAGE_LOAD_TIMEOUT = 10
@@ -95,10 +98,15 @@ def _set_cached(key: str, value: Any, expiry_hours: int = 24) -> None:
     _cache[key] = CacheEntry(value, expiry_hours)
 
 
-def _extract_current_matchday() -> int | None:
-    """Extract current matchday from Transfermarkt.
+def _extract_current_matchday(season_id: int) -> int | None:
+    """Extract current matchday from SofaScore API.
 
+    Uses SofaScore's official API to get the current round number. This is
+    more reliable than scraping third-party sites like Transfermarkt.
     Uses a cache (24h expiry) to avoid repeated lookups.
+
+    Args:
+        season_id: SofaScore season ID to query.
 
     Returns:
         Matchday number if found, None otherwise.
@@ -110,46 +118,37 @@ def _extract_current_matchday() -> int | None:
         return cached
 
     try:
-        logger.info(f"Extracting current matchday from {TRANSFERMARKT_URL}")
-        response = requests.get(
-            TRANSFERMARKT_URL, impersonate="chrome", timeout=10
+        # Build API URL with tournament and season IDs
+        api_url = SOFASCORE_API_ROUNDS_URL.format(
+            tournament_id=TOURNAMENT_ID, season_id=season_id
         )
+        logger.info(f"Fetching current matchday from SofaScore API: {api_url}")
+
+        response = requests.get(api_url, impersonate="chrome", timeout=10)
 
         if response.status_code != 200:
             logger.warning(
-                f"Failed to fetch Transfermarkt page: {response.status_code}"
+                f"Failed to fetch SofaScore rounds API: {response.status_code}"
             )
             return None
 
-        soup = BeautifulSoup(response.text, "html.parser")
+        data = response.json()
 
-        # Find all matchday mentions
-        matchday_pattern = re.compile(
-            r"(?i)(?:All games from )?(?:matchday|jornada|round)\s+(\d+)"
-        )
-        texts = soup.find_all(string=matchday_pattern)
+        # Extract current round from API response
+        current_round = data.get("currentRound", {}).get("round")
 
-        matchdays = []
-        for text in texts:
-            match = matchday_pattern.search(text)
-            if match:
-                matchday_num = int(match.group(1))
-                matchdays.append(matchday_num)
-
-        if matchdays:
-            # Use the highest matchday number (most recent)
-            current_matchday = max(matchdays)
-            logger.info(f"Found current matchday: {current_matchday}")
+        if current_round is not None:
+            logger.info(f"Found current matchday from API: {current_round}")
 
             # Cache the result for 24 hours
-            _set_cached("matchday", current_matchday, expiry_hours=24)
-            return current_matchday
+            _set_cached("matchday", current_round, expiry_hours=24)
+            return current_round
         else:
-            logger.warning("No matchdays found on Transfermarkt page")
+            logger.warning("No currentRound found in API response")
             return None
 
     except Exception as e:
-        logger.warning(f"Failed to extract matchday: {e}")
+        logger.warning(f"Failed to extract matchday from API: {e}")
         return None
 
 
@@ -236,7 +235,7 @@ def _build_widget_url(
 
     Args:
         season_id: Season ID to use. If None, uses fallback URL.
-        matchday: Current matchday number. If None, extracts from
+        matchday: Current matchday number from API. If None, extracts from
             fallback URL.
 
     Returns:
@@ -249,7 +248,9 @@ def _build_widget_url(
     # Calculate round ID from matchday
     if matchday is not None:
         round_id = BASE_ROUND_ID + matchday
-        logger.info(f"Calculated round ID {round_id} from matchday {matchday}")
+        logger.info(
+            f"Calculated round ID {round_id} from API matchday {matchday}"
+        )
     else:
         # Extract the round ID from the fallback URL
         round_match = re.search(r"/round/(\d+)/", FALLBACK_WIDGET_URL)
@@ -294,9 +295,15 @@ def fetch_team_week() -> DFile:
     Raises:
         Exception: If screenshot capture fails.
     """
-    # Try to extract current season ID and matchday
+    # Try to extract current season ID first
     season_id = _extract_current_season()
-    matchday = _extract_current_matchday()
+
+    # Extract matchday using the season_id
+    # (or None if season extraction failed)
+    # If season_id is None, we'll fall back to the hardcoded URL anyway
+    matchday = None
+    if season_id is not None:
+        matchday = _extract_current_matchday(season_id)
 
     # Build widget URL (will use fallback if both are None)
     widget_url = _build_widget_url(season_id, matchday)
