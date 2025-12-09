@@ -22,24 +22,17 @@ TOURNAMENT_ID = 238  # Liga Portugal Betclic
 TOURNAMENT_URL = (
     "https://www.sofascore.com/tournament/football/portugal/liga-portugal/238"
 )
-SOFASCORE_API_ROUNDS_URL = (
+# API endpoint that provides TOTW rounds with actual round IDs
+SOFASCORE_TOTW_ROUNDS_API = (
     "https://api.sofascore.com/api/v1/unique-tournament/{tournament_id}/"
-    "season/{season_id}/rounds"
+    "season/{season_id}/team-of-the-week/rounds"
 )
 
-# Round ID calculation: SofaScore uses round_id = BASE_ROUND_ID + matchday.
-# This was derived from: API currentRound=12, working URL uses round=22963,
-# therefore: BASE_ROUND_ID = 22963 - 12 = 22951.
-# Note: This BASE_ROUND_ID is specific to the 2025/26 season and may need
-# adjustment when the season changes. Each season appears to have its own
-# base round ID offset.
-BASE_ROUND_ID = 22951
-
 # Fallback widget URL (will be used if dynamic extraction fails)
-# Updated for 2025/26 season, matchday 12
+# Updated for 2025/26 season, round 13
 FALLBACK_WIDGET_URL = (
     "https://widgets.sofascore.com/embed/unique-tournament/238/season/77806/"
-    "round/22963/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
+    "round/23075/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
     "&widgetTitle=Liga%20Portugal%20Betclic"
 )
 PAGE_LOAD_TIMEOUT = 10
@@ -98,57 +91,68 @@ def _set_cached(key: str, value: Any, expiry_hours: int = 24) -> None:
     _cache[key] = CacheEntry(value, expiry_hours)
 
 
-def _extract_current_matchday(season_id: int) -> int | None:
-    """Extract current matchday from SofaScore API.
+def _get_latest_totw_round_id(season_id: int) -> int | None:
+    """Get the latest Team of the Week round ID from SofaScore API.
 
-    Uses SofaScore's official API to get the current round number. This is
-    more reliable than scraping third-party sites like Transfermarkt.
-    Uses a cache (24h expiry) to avoid repeated lookups.
+    Uses SofaScore's TOTW-specific API to get the most recent published
+    Team of the Week. This API returns rounds in reverse chronological order
+    (newest first), so the first entry is the latest TOTW available.
+    Uses a cache (1h expiry) to avoid repeated lookups.
 
     Args:
         season_id: SofaScore season ID to query.
 
     Returns:
-        Matchday number if found, None otherwise.
+        Round ID (internal SofaScore ID) if found, None otherwise.
     """
     # Return cached value if available and not expired
-    cached = _get_cached("matchday")
+    cached = _get_cached("totw_round_id")
     if cached is not None:
-        logger.info(f"Using cached matchday: {cached}")
+        logger.info(f"Using cached TOTW round ID: {cached}")
         return cached
 
     try:
         # Build API URL with tournament and season IDs
-        api_url = SOFASCORE_API_ROUNDS_URL.format(
+        api_url = SOFASCORE_TOTW_ROUNDS_API.format(
             tournament_id=TOURNAMENT_ID, season_id=season_id
         )
-        logger.info(f"Fetching current matchday from SofaScore API: {api_url}")
+        logger.info(f"Fetching latest TOTW round from API: {api_url}")
 
         response = requests.get(api_url, impersonate="chrome", timeout=10)
 
         if response.status_code != 200:
             logger.warning(
-                f"Failed to fetch SofaScore rounds API: {response.status_code}"
+                f"Failed to fetch TOTW rounds API: {response.status_code}"
             )
             return None
 
         data = response.json()
+        rounds = data.get("rounds", [])
 
-        # Extract current round from API response
-        current_round = data.get("currentRound", {}).get("round")
+        if not rounds:
+            logger.warning("No TOTW rounds found in API response")
+            return None
 
-        if current_round is not None:
-            logger.info(f"Found current matchday from API: {current_round}")
+        # Rounds are ordered newest first, so first entry is latest TOTW
+        latest_round = rounds[0]
+        round_id = latest_round.get("id")
+        round_num = latest_round.get("roundId")
 
-            # Cache the result for 24 hours
-            _set_cached("matchday", current_round, expiry_hours=24)
-            return current_round
+        if round_id is not None:
+            logger.info(
+                f"Found latest TOTW: Round {round_num} (ID: {round_id})"
+            )
+
+            # Cache the result for 1 hour (shorter than season since TOTW
+            # updates weekly)
+            _set_cached("totw_round_id", round_id, expiry_hours=1)
+            return round_id
         else:
-            logger.warning("No currentRound found in API response")
+            logger.warning("No round ID found in latest TOTW entry")
             return None
 
     except Exception as e:
-        logger.warning(f"Failed to extract matchday from API: {e}")
+        logger.warning(f"Failed to extract TOTW round ID from API: {e}")
         return None
 
 
@@ -225,49 +229,21 @@ def _extract_current_season() -> int | None:
 
 
 def _build_widget_url(
-    season_id: int | None = None, matchday: int | None = None
+    season_id: int | None = None, round_id: int | None = None
 ) -> str:
-    """Build widget URL with current season and matchday, or use fallback.
-
-    The widget URL requires both season and round parameters. The round ID
-    is calculated from the matchday using:
-    round_id = BASE_ROUND_ID + matchday.
+    """Build widget URL with current season and round ID, or use fallback.
 
     Args:
         season_id: Season ID to use. If None, uses fallback URL.
-        matchday: Current matchday number from API. If None, extracts from
-            fallback URL.
+        round_id: Round ID (internal SofaScore ID) from TOTW API. If None,
+            uses fallback URL.
 
     Returns:
         Widget URL string.
     """
-    if season_id is None and matchday is None:
-        logger.info("Using fallback widget URL")
+    if season_id is None or round_id is None:
+        logger.info("Using fallback widget URL (missing season or round ID)")
         return FALLBACK_WIDGET_URL
-
-    # Calculate round ID from matchday
-    if matchday is not None:
-        round_id = BASE_ROUND_ID + matchday
-        logger.info(
-            f"Calculated round ID {round_id} from API matchday {matchday}"
-        )
-    else:
-        # Extract the round ID from the fallback URL
-        round_match = re.search(r"/round/(\d+)/", FALLBACK_WIDGET_URL)
-        if not round_match:
-            logger.warning("Could not extract round from fallback URL")
-            return FALLBACK_WIDGET_URL
-        round_id = int(round_match.group(1))
-        logger.info(f"Using fallback round ID: {round_id}")
-
-    # Use provided season_id or extract from fallback
-    if season_id is None:
-        season_match = re.search(r"/season/(\d+)/", FALLBACK_WIDGET_URL)
-        if not season_match:
-            logger.warning("Could not extract season from fallback URL")
-            return FALLBACK_WIDGET_URL
-        season_id = int(season_match.group(1))
-        logger.info(f"Using fallback season ID: {season_id}")
 
     # Build URL with dynamic season and round
     url = (
@@ -277,7 +253,7 @@ def _build_widget_url(
         "&widgetTitle=Liga%20Portugal%20Betclic"
     )
     logger.info(
-        f"Built widget URL with season {season_id} and round {round_id}"
+        f"Built widget URL with season {season_id} and round ID {round_id}"
     )
     return url
 
@@ -285,9 +261,9 @@ def _build_widget_url(
 def fetch_team_week() -> DFile:
     """Fetch team of the week screenshot from SofaScore widget.
 
-    Automatically extracts the current season ID and matchday, then builds
-    the widget URL dynamically. Falls back to a hardcoded URL if extraction
-    fails.
+    Automatically extracts the current season ID and latest TOTW round ID,
+    then builds the widget URL dynamically. Falls back to a hardcoded URL
+    if extraction fails.
 
     Returns:
         Discord File object containing team of the week screenshot.
@@ -298,15 +274,13 @@ def fetch_team_week() -> DFile:
     # Try to extract current season ID first
     season_id = _extract_current_season()
 
-    # Extract matchday using the season_id
-    # (or None if season extraction failed)
-    # If season_id is None, we'll fall back to the hardcoded URL anyway
-    matchday = None
+    # Get the latest TOTW round ID from the API
+    round_id = None
     if season_id is not None:
-        matchday = _extract_current_matchday(season_id)
+        round_id = _get_latest_totw_round_id(season_id)
 
-    # Build widget URL (will use fallback if both are None)
-    widget_url = _build_widget_url(season_id, matchday)
+    # Build widget URL (will use fallback if either is None)
+    widget_url = _build_widget_url(season_id, round_id)
 
     browser = gen_browser()
     try:

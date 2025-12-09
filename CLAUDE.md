@@ -82,18 +82,17 @@ SCHEDULE_HOUR=8
 - Screenshots SofaScore's Liga Portugal Betclic Team of the Week widget
 - **Fully automated**: No manual updates needed!
   - Extracts current season ID from SofaScore page using curl_cffi (yearly changes)
-  - Extracts current matchday from **SofaScore API** using curl_cffi (weekly changes)
-  - Uses official API endpoint: `/api/v1/unique-tournament/238/season/{id}/rounds`
-  - Calculates SofaScore round ID using formula: `BASE_ROUND_ID + matchday`
-  - Builds widget URL dynamically with both season and round
-- **Reliable data source**: Uses SofaScore's own API for accurate current round detection
+  - Gets latest published TOTW round ID from **SofaScore TOTW API** (weekly updates)
+  - Uses official API endpoint: `/api/v1/unique-tournament/238/season/{id}/team-of-the-week/rounds`
+  - API returns rounds in reverse chronological order, first entry is latest TOTW
+  - Builds widget URL dynamically with season ID and round ID
+- **Reliable data source**: Uses SofaScore's TOTW-specific API for accurate round detection
 - **Performance optimized**: Uses Firefox only once (for screenshot, not data extraction)
 - **Image processing**: Crops screenshot to show only team formation (75% of height), removes branding
 - Uses `curl_cffi` with Chrome impersonation to bypass bot detection (no 403 errors)
 - Uses direct widget embed URL from <https://widgets.sofascore.com> (no dialogs!)
 - Fallback mechanism: Uses hardcoded URL if extraction fails
-- Session caching: Caches season ID and matchday to avoid repeated lookups (24h expiry)
-- **Note**: `BASE_ROUND_ID` (22951) is specific to 2025/26 season and may need adjustment when season changes
+- Session caching: Caches season ID (24h expiry) and round ID (1h expiry) to avoid repeated lookups
 - Uses curl_cffi for HTTP requests, Selenium for screenshot, PIL for image cropping
 - Returns cropped screenshot as Discord File (smaller file size, cleaner appearance)
 - Proper browser cleanup with try/finally
