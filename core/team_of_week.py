@@ -29,10 +29,10 @@ SOFASCORE_TOTW_ROUNDS_API = (
 )
 
 # Fallback widget URL (will be used if dynamic extraction fails)
-# Updated for 2025/26 season, round 13
+# Updated for 2025/26 season, round 14
 FALLBACK_WIDGET_URL = (
     "https://widgets.sofascore.com/embed/unique-tournament/238/season/77806/"
-    "round/23075/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
+    "round/23174/teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
     "&widgetTitle=Liga%20Portugal%20Betclic"
 )
 PAGE_LOAD_TIMEOUT = 10
@@ -118,7 +118,16 @@ def _get_latest_totw_round_id(season_id: int) -> int | None:
         )
         logger.info(f"Fetching latest TOTW round from API: {api_url}")
 
-        response = requests.get(api_url, impersonate="chrome", timeout=10)
+        # Use additional headers to make request more legitimate
+        headers = {
+            "Accept": "application/json",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Origin": "https://www.sofascore.com",
+            "Referer": "https://www.sofascore.com/",
+        }
+        response = requests.get(
+            api_url, impersonate="chrome", headers=headers, timeout=10
+        )
 
         if response.status_code != 200:
             logger.warning(
