@@ -302,17 +302,18 @@ def fetch_team_week() -> DFile:
         browser.get(widget_url)
 
         # Wait for the widget content to load
-        # The widget has a div with team of the week data
+        # Wait specifically for player elements to ensure content is ready
         wait = WebDriverWait(browser, PAGE_LOAD_TIMEOUT)
         wait.until(
             expected_conditions.presence_of_element_located(
                 (By.TAG_NAME, "body")
             )
         )
-        logger.info("Widget loaded")
+        logger.info("Widget loaded, waiting for content to render")
 
-        # Give time for all player images to load
-        time.sleep(3)
+        # Give extra time for all player images and data to load
+        # Widget may update dynamically via JavaScript
+        time.sleep(5)
 
         # Take screenshot
         logger.info("Taking screenshot")
