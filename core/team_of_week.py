@@ -248,21 +248,26 @@ def _build_widget_url(
             uses fallback URL.
 
     Returns:
-        Widget URL string.
+        Widget URL string with cache-busting parameter.
     """
     if season_id is None or round_id is None:
         logger.info("Using fallback widget URL (missing season or round ID)")
-        return FALLBACK_WIDGET_URL
+        # Add cache-busting parameter to fallback URL too
+        cache_buster = int(time.time())
+        return f"{FALLBACK_WIDGET_URL}&_cb={cache_buster}"
 
     # Build URL with dynamic season and round
+    # Add cache-busting parameter to force fresh content
+    cache_buster = int(time.time())
     url = (
         f"https://widgets.sofascore.com/embed/unique-tournament/"
         f"{TOURNAMENT_ID}/season/{season_id}/round/{round_id}/"
-        "teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
-        "&widgetTitle=Liga%20Portugal%20Betclic"
+        f"teamOfTheWeek?showCompetitionLogo=true&widgetTheme=light"
+        f"&widgetTitle=Liga%20Portugal%20Betclic&_cb={cache_buster}"
     )
     logger.info(
-        f"Built widget URL with season {season_id} and round ID {round_id}"
+        f"Built widget URL with season {season_id} and round ID {round_id} "
+        f"(cache buster: {cache_buster})"
     )
     return url
 
